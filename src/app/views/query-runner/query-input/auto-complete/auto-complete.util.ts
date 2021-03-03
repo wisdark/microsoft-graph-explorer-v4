@@ -1,4 +1,4 @@
-import { IAutoCompleteProps } from '../../../../../types/auto-complete';
+import { IAutocompleteUtilProps } from '../../../../../types/auto-complete';
 
 export function cleanUpSelectedSuggestion(compare: string, userInput: string, selected: string) {
   let finalSelectedSuggestion = `${userInput + selected}`;
@@ -13,7 +13,7 @@ export function cleanUpSelectedSuggestion(compare: string, userInput: string, se
   return finalSelectedSuggestion;
 }
 
-export function getParametersWithVerb(properties: IAutoCompleteProps) {
+export function getParametersWithVerb(properties: IAutocompleteUtilProps) {
   const { autoCompleteOptions, sampleQuery: { selectedVerb } } = properties;
   if (!autoCompleteOptions) {
     return;

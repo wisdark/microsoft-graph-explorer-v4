@@ -57,7 +57,7 @@ export class QueryInput extends Component<IQueryInputProps, any> {
     }
   }
 
-  public handleOnRunQuery = (event: any) => {
+  public handleOnRunQuery = () => {
     // allows the state to be populated with the new url before running it
     setTimeout(() => {
       this.props.handleOnRunQuery();
@@ -73,7 +73,6 @@ export class QueryInput extends Component<IQueryInputProps, any> {
       handleOnVersionChange,
       sampleQuery,
       submitting,
-      mode,
       authenticated,
     } = this.props;
 

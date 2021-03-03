@@ -1,18 +1,17 @@
 import { IQuery } from './query-runner';
 
 export interface IAutoCompleteProps {
-  suggestions: string[];
   contentChanged: Function;
   runQuery: Function;
+}
+
+export interface IAutocompleteUtilProps {
+  fetchingSuggestions?: boolean;
   sampleQuery: IQuery;
-  fetchingSuggestions: boolean;
-  autoCompleteError: any;
+  autoCompleteError?: any;
   autoCompleteOptions: {
     url: string;
     parameters: any[];
-  };
-  actions?: {
-    fetchAutoCompleteOptions: Function;
   };
 }
 
