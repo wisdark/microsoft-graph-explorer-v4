@@ -29,7 +29,6 @@ export async function getChanges(query: IQuery, dispatch: Function) {
         .catch(error => {
             throw error;
         });
-    return dispatch(changesResponse({
-        body: result
-    }));
+    //console.log(result);
+    return dispatch(changesResponse(result));
 }
