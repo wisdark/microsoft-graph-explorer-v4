@@ -5,6 +5,7 @@ import { IHistoryItem } from '../../../types/history';
 import { IQuery } from '../../../types/query-runner';
 import { IStatus } from '../../../types/status';
 import { writeHistoryData } from '../../views/sidebar/history/history-utils';
+import { getChanges } from './changes_action_creator';
 import {
   anonymousRequest, authenticatedRequest,
   isImageResponse, parseResponse, queryResponse
@@ -37,6 +38,7 @@ export function runQuery(query: IQuery): Function {
 
     return anonymousRequest(dispatch, query).then(async (response: Response) => {
       await processResponse(response, respHeaders, dispatch, createdAt);
+      getChanges(query, dispatch);
     });
   };
 

@@ -2,6 +2,7 @@ import { combineReducers } from 'redux';
 import { adaptiveCard } from './adaptive-cards-reducer';
 import { authToken, consentedScopes } from './auth-reducers';
 import { autoComplete } from './autocomplete-reducer';
+import { changes } from './changes-reducer';
 import { devxApi } from './devxApi-reducers';
 import { dimensions } from './dimensions-reducers';
 import { permissionsPanelOpen } from './permissions-panel-reducer';
@@ -41,5 +42,6 @@ export default combineReducers({
   termsOfUse,
   theme,
   dimensions,
-  permissionsPanelOpen
+  permissionsPanelOpen,
+  changes
 });
