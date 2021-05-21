@@ -1,5 +1,5 @@
 
-import { Link, MessageBar, MessageBarType } from 'office-ui-fabric-react';
+import { Link, MessageBar, MessageBarType, Pivot, PivotItem } from 'office-ui-fabric-react';
 import React from 'react';
 import { FormattedMessage } from 'react-intl';
 import { useDispatch, useSelector } from 'react-redux';
@@ -8,8 +8,10 @@ import { IQuery } from '../../../../types/query-runner';
 import { IRootState } from '../../../../types/root';
 import { runQuery } from '../../../services/actions/query-action-creators';
 import { setSampleQuery } from '../../../services/actions/query-input-action-creators';
+import { translateMessage } from '../../../utils/translate-messages';
 import { convertVhToPx, getResponseHeight } from '../../common/dimensions-adjustment';
 import ResponseDisplay from './ResponseDisplay';
+import Changelog from './Changelog';
 
 const Response = () => {
   const dispatch = useDispatch();
@@ -30,21 +32,36 @@ const Response = () => {
   if (headers) {
     const contentType = getContentType(headers);
     return (
-      <div style={{ display: 'block' }}>
-        {nextLink &&
-          <MessageBar messageBarType={MessageBarType.info}>
-            <FormattedMessage id='This response contains an @odata.nextLink property.' />
-            <Link onClick={() => setQuery()}>
-              &nbsp;<FormattedMessage id='Click here to go to the next page' />
-            </Link>
-          </MessageBar>
-        }
-        <ResponseDisplay
-          contentType={contentType}
-          body={body}
-          height={height}
-        />
-      </div>
+      <Pivot>
+        <PivotItem
+          itemKey='Response'
+          ariaLabel={translateMessage('Response')}
+          headerText={translateMessage('Response')}
+        >
+          <div style={{ display: 'block' }}>
+            {nextLink &&
+              <MessageBar messageBarType={MessageBarType.info}>
+                <FormattedMessage id='This response contains an @odata.nextLink property.' />
+                <Link onClick={() => setQuery()}>
+                  &nbsp;<FormattedMessage id='Click here to go to the next page' />
+                </Link>
+              </MessageBar>
+            }
+            <ResponseDisplay
+              contentType={contentType}
+              body={body}
+              height={height}
+            />
+          </div>
+        </PivotItem>
+        <PivotItem
+          itemKey='Changelog'
+          ariaLabel={translateMessage('Changelog')}
+          headerText={translateMessage('Changelog')}
+        >
+          <Changelog />
+        </PivotItem>
+      </Pivot>
     );
   }
   return <div />;
