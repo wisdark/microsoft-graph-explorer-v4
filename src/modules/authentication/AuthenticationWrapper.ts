@@ -11,7 +11,7 @@ import {
   DEFAULT_USER_SCOPES,
   HOME_ACCOUNT_KEY
 } from '../../app/services/graph-constants';
-import { signInAuthError } from '../../app/views/authentication/AuthenticationErrorsHints';
+import { signInAuthError } from './authentication-error-hints';
 import { geLocale } from '../../appLocale';
 import { getCurrentUri } from './authUtils';
 import IAuthenticationWrapper from './IAuthenticationWrapper';
@@ -44,21 +44,18 @@ export class AuthenticationWrapper implements IAuthenticationWrapper {
     try {
       return await this.getAuthResult([], sessionId);
     } catch (error) {
-      throw error;
+      throw new Error(`${error}`);
     }
   }
 
   public logOut() {
     this.deleteHomeAccountId();
-    msalApplication.logout();
+    msalApplication.logoutRedirect();
   }
 
   public async logOutPopUp() {
-    const endSessionEndpoint = (await msalApplication.getDiscoveredAuthority())
-      .endSessionEndpoint;
-    (window as any).open(endSessionEndpoint, 'msal', 400, 600);
-    this.clearCache();
     this.deleteHomeAccountId();
+    msalApplication.logoutPopup();
   }
 
   /**
@@ -72,7 +69,7 @@ export class AuthenticationWrapper implements IAuthenticationWrapper {
       const authResult = await this.loginWithInteraction(scopes);
       return authResult;
     } catch (error) {
-      throw error;
+      throw new Error(`${error}`);
     }
   }
 
@@ -101,12 +98,8 @@ export class AuthenticationWrapper implements IAuthenticationWrapper {
       scopes: defaultScopes, authority: this.getAuthority(),
       account: this.getAccount(), redirectUri: getCurrentUri()
     };
-    try {
-      const response: AuthenticationResult = await msalApplication.acquireTokenSilent(silentRequest);
-      return response;
-    } catch (error) {
-      throw error;
-    }
+    const response: AuthenticationResult = await msalApplication.acquireTokenSilent(silentRequest);
+    return response;
   }
 
   public async getOcpsToken() {

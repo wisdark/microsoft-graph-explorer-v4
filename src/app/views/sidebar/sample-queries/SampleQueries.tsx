@@ -22,7 +22,7 @@ import * as queryInputActionCreators from '../../../services/actions/query-input
 import * as queryStatusActionCreators from '../../../services/actions/query-status-action-creator';
 import * as samplesActionCreators from '../../../services/actions/samples-action-creators';
 import { GRAPH_URL } from '../../../services/graph-constants';
-import { getStyleFor } from '../../../utils/badge-color';
+import { getStyleFor } from '../../../utils/http-methods.utils';
 import { validateExternalLink } from '../../../utils/external-link-validation';
 import { generateGroupsFromList } from '../../../utils/generate-groups';
 import { sanitizeQueryUrl } from '../../../utils/query-url-sanitization';
@@ -30,6 +30,7 @@ import { substituteTokens } from '../../../utils/token-helpers';
 import { classNames } from '../../classnames';
 import { sidebarStyles } from '../Sidebar.styles';
 import { isJsonString } from './sample-query-utils';
+import { searchBoxStyles } from '../../../utils/searchbox.styles';
 
 export class SampleQueries extends Component<ISampleQueriesProps, any> {
   constructor(props: ISampleQueriesProps) {
@@ -149,7 +150,7 @@ export class SampleQueries extends Component<ISampleQueriesProps, any> {
               calloutProps={{ gapSpace: 0 }}
             >
               <Icon
-                iconName='NavigateExternalInline'
+                iconName='TextDocument'
                 onClick={() => this.onDocumentationLinkClicked(item)}
                 className={classes.docLink}
                 style={{
@@ -181,7 +182,6 @@ export class SampleQueries extends Component<ISampleQueriesProps, any> {
               >
                 {item.method}
               </span>
-              ;
             </TooltipHost>
           );
 
@@ -238,6 +238,7 @@ export class SampleQueries extends Component<ISampleQueriesProps, any> {
               (selectionDisabled ? classes.rowDisabled : '')
             }
             data-selection-disabled={selectionDisabled}
+            getRowAriaLabel={() => props.item.method.toLowerCase() + props.item.humanName}
           />
         </div>
       );
@@ -344,7 +345,9 @@ export class SampleQueries extends Component<ISampleQueriesProps, any> {
     const groups = generateGroupsFromList(sampleQueries, 'category');
     if (this.state.selectedQuery) {
       const index = groups.findIndex(k => k.key === this.state.selectedQuery.category);
-      groups[index].isCollapsed = false;
+      if (index !== -1) {
+        groups[index].isCollapsed = false;
+      }
     }
 
     if (pending) {
@@ -407,7 +410,7 @@ export class SampleQueries extends Component<ISampleQueriesProps, any> {
           className={classes.searchBox}
           placeholder={messages['Search sample queries']}
           onChange={this.searchValueChanged}
-          styles={{ field: { paddingLeft: 10 } }}
+          styles={searchBoxStyles}
           aria-label={'Search'}
         />
         <hr />

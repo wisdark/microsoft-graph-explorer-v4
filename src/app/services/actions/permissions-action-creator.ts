@@ -9,7 +9,7 @@ import { IRootState } from '../../../types/root';
 import { sanitizeQueryUrl } from '../../utils/query-url-sanitization';
 import { parseSampleUrl } from '../../utils/sample-url-generation';
 import { translateMessage } from '../../utils/translate-messages';
-import { getConsentAuthErrorHint } from '../../views/authentication/AuthenticationErrorsHints';
+import { getConsentAuthErrorHint } from '../../../modules/authentication/authentication-error-hints';
 import { ACCOUNT_TYPE, PERMS_SCOPE } from '../graph-constants';
 import {
   FETCH_SCOPES_ERROR,
@@ -20,6 +20,7 @@ import {
   getAuthTokenSuccess,
   getConsentedScopesSuccess
 } from './auth-action-creators';
+import { getProfileInfo } from './profile-action-creators';
 import { setQueryResponseStatus } from './query-status-action-creator';
 
 export function fetchScopesSuccess(response: object): IAction {
@@ -99,7 +100,7 @@ export function fetchScopes(): Function {
   };
 }
 
-function getPermissionsScopeType(profile: IUser | null | undefined) {
+export function getPermissionsScopeType(profile: IUser | null | undefined) {
   if (profile?.profileType === ACCOUNT_TYPE.MSA) {
     return PERMS_SCOPE.PERSONAL;
   }
@@ -107,12 +108,19 @@ function getPermissionsScopeType(profile: IUser | null | undefined) {
 }
 
 export function consentToScopes(scopes: string[]): Function {
-  return async (dispatch: Function) => {
+  return async (dispatch: Function, getState: Function) => {
     try {
+      const { profile }: IRootState = getState();
       const authResponse = await authenticationWrapper.consentToScopes(scopes);
       if (authResponse && authResponse.accessToken) {
         dispatch(getAuthTokenSuccess(true));
         dispatch(getConsentedScopesSuccess(authResponse.scopes));
+        if (
+          authResponse.account &&
+          authResponse.account.localAccountId !== profile?.id
+        ) {
+          dispatch(getProfileInfo());
+        }
       }
     } catch (error: any) {
       const { errorCode } = error;

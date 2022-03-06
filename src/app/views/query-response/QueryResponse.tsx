@@ -1,7 +1,7 @@
 import {
   Announced, Dialog, DialogFooter, DialogType,
   DefaultButton, FontSizes, getId, Icon, IconButton,
-  Modal, Pivot, PivotItem, PrimaryButton, TooltipHost
+  Modal, Pivot, PivotItem, TooltipHost
 } from '@fluentui/react';
 import { Resizable } from 're-resizable';
 import React, { useEffect, useState } from 'react';
@@ -16,11 +16,11 @@ import { sanitizeQueryUrl } from '../../utils/query-url-sanitization';
 import { expandResponseArea } from '../../services/actions/response-expanded-action-creator';
 import { translateMessage } from '../../utils/translate-messages';
 import { copy } from '../common/copy';
-import { convertVhToPx } from '../common/dimensions-adjustment';
-import { createShareLink } from '../common/share';
+import { convertVhToPx } from '../common/dimensions/dimensions-adjustment';
 import { getPivotItems, onPivotItemClick } from './pivot-items/pivot-items';
 import './query-response.scss';
 import { IRootState } from '../../../types/root';
+import { CopyButton } from '../common/copy/CopyButton';
 
 
 const QueryResponse = (props: IQueryResponseProps) => {
@@ -28,10 +28,9 @@ const QueryResponse = (props: IQueryResponseProps) => {
 
   const [showShareQueryDialog, setShareQuaryDialogStatus] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [query, setQuery] = useState('');
+  const [query] = useState('');
   const [responseHeight, setResponseHeight] = useState('610px');
   const { dimensions, sampleQuery } = useSelector((state: IRootState) => state);
-
 
   const {
     intl: { messages }
@@ -51,7 +50,7 @@ const QueryResponse = (props: IQueryResponseProps) => {
   };
 
   const handleCopy = () => {
-    copy('share-query-text').then(() => toggleShareQueryDialogState());
+    copy('share-query-text');
     trackCopyEvent();
   };
 
@@ -72,19 +71,10 @@ const QueryResponse = (props: IQueryResponseProps) => {
     toggleModal(pivotItem);
   };
 
-  const handleShareQuery = () => {
-    const shareableLink = createShareLink(sampleQuery);
-    setQuery(shareableLink);
-    toggleShareQueryDialogState();
-  };
-
   const toggleModal = (event: any) => {
     const { key } = event;
     if (key && key.includes('expand')) {
       toggleExpandResponse();
-    }
-    if (key && key.includes('share')) {
-      handleShareQuery();
     }
   };
 
@@ -127,15 +117,6 @@ const QueryResponse = (props: IQueryResponseProps) => {
           <Pivot overflowBehavior="menu" onLinkClick={handlePivotItemClick}
             className={'pivot-response'} >
             {getPivotItems()}
-            <PivotItem
-              headerText='Share'
-              key='share'
-              itemIcon='Share'
-              itemKey='share-query' // To be used to construct component name for telemetry data
-              ariaLabel={translateMessage('Share Query Message')}
-              title={translateMessage('Share Query Message')}
-              onRenderItemLink={renderItemLink}
-            />
             <PivotItem
               headerText='Expand'
               key='expand'
@@ -190,7 +171,6 @@ const QueryResponse = (props: IQueryResponseProps) => {
             width: '100%',
             height: 63,
             overflowY: 'scroll',
-            border: 'none',
             resize: 'none',
             color: 'black'
           }}
@@ -200,7 +180,7 @@ const QueryResponse = (props: IQueryResponseProps) => {
           aria-label={translateMessage('Share Query')}
         />
         <DialogFooter>
-          <PrimaryButton text={messages.Copy} onClick={handleCopy} />
+          <CopyButton handleOnClick={handleCopy} isIconButton={false} />
           <DefaultButton
             text={messages.Close}
             onClick={toggleShareQueryDialogState}

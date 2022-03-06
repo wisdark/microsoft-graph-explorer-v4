@@ -1,17 +1,19 @@
 import { IHarFormat, IHarHeaders, IHarPayload } from '../../../../types/har';
 import { IHistoryItem } from '../../../../types/history';
+import { downloadToLocal } from '../../common/download';
 
 export function createHarPayload(query: IHistoryItem): IHarPayload {
   const queryResult = JSON.stringify(query.result);
 
   const headers: IHarHeaders[] = [];
   if (query.headers) {
-    query.headers.forEach(header => {
+    query.headers.forEach((header) => {
       const { name, value } = header;
       const head: IHarHeaders = {
-        name, value
-      }
-      headers.push(head)
+        name,
+        value
+      };
+      headers.push(head);
     });
   }
 
@@ -32,8 +34,7 @@ export function createHarPayload(query: IHistoryItem): IHarPayload {
     request: {
       headers
     },
-    response:
-    {
+    response: {
       headers: query.responseHeaders
     },
     sendTime: 0,
@@ -43,7 +44,8 @@ export function createHarPayload(query: IHistoryItem): IHarPayload {
   };
 
   if (query.body) {
-    harPayload = Object.assign(harPayload, { //tslint:disable-line
+    harPayload = Object.assign(harPayload, {
+      //tslint:disable-line
       postData: {
         mimeType: 'application/json',
         text: query.body
@@ -69,7 +71,7 @@ export function generateHar(payloads: IHarPayload[]): IHarFormat {
 
 function createEntries(payloads: IHarPayload[]) {
   const entries: any = [];
-  payloads.forEach(payload => {
+  payloads.forEach((payload) => {
     entries.push({
       startedDateTime: payload.startedDateTime,
       time: payload.time,
@@ -108,18 +110,9 @@ function createEntries(payloads: IHarPayload[]) {
 }
 
 export function exportQuery(content: IHarFormat, requestUrl: string) {
-  const blob = new Blob([JSON.stringify(content)], { type: 'text/json' });
-
   const url = requestUrl.substr(8).split('/');
   url.pop();
 
   const filename = `${url.join('_')}.har`;
-  const elem = window.document.createElement('a');
-  elem.href = window.URL.createObjectURL(blob);
-  elem.download = filename;
-  document.body.appendChild(elem);
-  elem.click();
-  document.body.removeChild(elem);
+  downloadToLocal(content, filename);
 }
-
-
