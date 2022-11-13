@@ -1,18 +1,18 @@
 
+import { useDispatch } from 'react-redux';
 import React from 'react';
-import { useDispatch, useSelector } from 'react-redux';
 
-import { IRootState } from '../../../../types/root';
+import { AppDispatch, useAppSelector } from '../../../../store';
 import { getContentType } from '../../../services/actions/query-action-creator-util';
-import { responseMessages } from '../../app-sections/ResponseMessages';
 import { convertVhToPx, getResponseHeight } from '../../common/dimensions/dimensions-adjustment';
 import ResponseDisplay from './ResponseDisplay';
+import { responseMessages } from './ResponseMessages';
 
 const Response = () => {
-  const { dimensions: { response }, graphResponse, responseAreaExpanded, sampleQuery } =
-    useSelector((state: IRootState) => state);
+  const { dimensions: { response }, graphResponse, responseAreaExpanded, sampleQuery, authToken, graphExplorerMode } =
+    useAppSelector((state) => state);
   const { body, headers } = graphResponse;
-  const dispatch = useDispatch();
+  const dispatch: AppDispatch = useDispatch();
 
   const height = convertVhToPx(getResponseHeight(response.height, responseAreaExpanded), 100);
 
@@ -21,7 +21,7 @@ const Response = () => {
   const contentType = getContentType(headers);
   return (
     <div style={{ display: 'block' }}>
-      {responseMessages(graphResponse, sampleQuery, dispatch)}
+      {responseMessages(graphResponse, sampleQuery, authToken, graphExplorerMode, dispatch)}
       {!contentDownloadUrl && !throwsCorsError && headers &&
         <ResponseDisplay
           contentType={contentType}

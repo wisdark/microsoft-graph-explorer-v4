@@ -12,6 +12,7 @@ import {
 import { IQuery } from '../../../types/query-runner';
 import configureMockStore from 'redux-mock-store';
 import thunk from 'redux-thunk';
+import { AppAction } from '../../../types/action';
 const middleware = [thunk];
 const mockStore = configureMockStore(middleware);
 
@@ -21,10 +22,10 @@ describe('Graph Explorer Adaptive Cards Action Creators\'', () => {
     fetchMock.resetMocks();
   });
 
-  it('creates ADAPTIVE_FETCH_SUCCESS when getAdaptiveCardSuccess is called', () => {
+  it('should dispatch ADAPTIVE_FETCH_SUCCESS when getAdaptiveCardSuccess is called', () => {
 
     const result = { sample: 'response' };
-    const expectedAction = {
+    const expectedAction: AppAction = {
       type: FETCH_ADAPTIVE_CARD_SUCCESS,
       response: result
     };
@@ -34,9 +35,9 @@ describe('Graph Explorer Adaptive Cards Action Creators\'', () => {
 
   });
 
-  it('creates ADAPTIVE_FETCH_PENDING when getAdaptiveCardPending is called', () => {
+  it('should dispatch ADAPTIVE_FETCH_PENDING when getAdaptiveCardPending is called', () => {
 
-    const expectedAction = {
+    const expectedAction: AppAction = {
       type: FETCH_ADAPTIVE_CARD_PENDING,
       response: ''
     };
@@ -46,10 +47,10 @@ describe('Graph Explorer Adaptive Cards Action Creators\'', () => {
 
   });
 
-  it('creates ADAPTIVE_FETCH_ERROR when getAdaptiveCardError is called', () => {
+  it('should dispatch ADAPTIVE_FETCH_ERROR when getAdaptiveCardError is called', () => {
 
     const error = 'sample error';
-    const expectedAction = {
+    const expectedAction: AppAction = {
       type: FETCH_ADAPTIVE_CARD_ERROR,
       response: error
     };
@@ -59,9 +60,9 @@ describe('Graph Explorer Adaptive Cards Action Creators\'', () => {
 
   });
 
-  it('Dispatches FETCH_ADAPTIVE_CARD_SUCCESS with no payload', () => {
+  it('should dispatch FETCH_ADAPTIVE_CARD_SUCCESS when no payload is supplied to getAdaptiveCard()', () => {
     const result = { sample: 'response' };
-    const expectedAction = {
+    const expectedAction: AppAction = {
       type: FETCH_ADAPTIVE_CARD_SUCCESS,
       response: {}
     };
@@ -86,9 +87,9 @@ describe('Graph Explorer Adaptive Cards Action Creators\'', () => {
       });
   });
 
-  it('Dispatches FETCH_ADAPTIVE_CARD_SUCCESS with payload', () => {
+  it('should dispatch FETCH_ADAPTIVE_CARD_SUCCESS when getAdaptiveCards() is called with payload', () => {
     const result = { sample: 'response' };
-    const expectedAction = [
+    const expectedAction: AppAction[] = [
       {
         type: FETCH_ADAPTIVE_CARD_SUCCESS,
         response: {
@@ -141,9 +142,9 @@ describe('Graph Explorer Adaptive Cards Action Creators\'', () => {
       });
   })
 
-  it('Returns no template available if a sample query has no adaptive card', () => {
+  it('should return no template available if a sample query has no adaptive card', () => {
     const result = { sample: 'response' };
-    const expectedAction = {
+    const expectedAction: AppAction = {
       type: FETCH_ADAPTIVE_CARD_ERROR,
       response: 'No template available'
     };
@@ -182,9 +183,9 @@ describe('Graph Explorer Adaptive Cards Action Creators\'', () => {
       });
   });
 
-  it('Returns invalid payload for card if the payload received is an empty object', () => {
+  it('should return invalid payload for card if the payload received is an empty object', () => {
     const result = { sample: 'response' };
-    const expectedAction = {
+    const expectedAction: AppAction = {
       type: FETCH_ADAPTIVE_CARD_ERROR,
       response: 'Invalid payload for card'
     };
@@ -210,6 +211,4 @@ describe('Graph Explorer Adaptive Cards Action Creators\'', () => {
         expect(store.getActions()).toEqual([expectedAction]);
       });
   });
-
-
 });

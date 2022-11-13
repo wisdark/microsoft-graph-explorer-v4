@@ -3,10 +3,10 @@ import {
   Spinner, Text, TooltipHost
 } from '@fluentui/react';
 import React, { useState } from 'react';
-import { useSelector } from 'react-redux';
 
+import { useAppSelector } from '../../../../../../store';
+import { componentNames, eventTypes, telemetry } from '../../../../../../telemetry';
 import { ISampleQuery } from '../../../../../../types/query-runner';
-import { IRootState } from '../../../../../../types/root';
 import { sanitizeQueryUrl } from '../../../../../utils/query-url-sanitization';
 import { parseSampleUrl } from '../../../../../utils/sample-url-generation';
 import { translateMessage } from '../../../../../utils/translate-messages';
@@ -15,8 +15,8 @@ import { getMatchingSamples, IHint } from './suffix-util';
 import { styles } from './suffix.styles';
 
 const SuffixRenderer = () => {
-  const { autoComplete, sampleQuery, samples, queryRunnerStatus } = useSelector(
-    (state: IRootState) => state
+  const { autoComplete, sampleQuery, samples, queryRunnerStatus } = useAppSelector(
+    (state) => state
   );
   const fetchingSuggestions = autoComplete.pending;
   const autoCompleteError = autoComplete.error;
@@ -52,6 +52,17 @@ const SuffixRenderer = () => {
     let visible = isCalloutVisible;
     visible = !visible;
     setCalloutVisibility(visible);
+    if (visible) {
+      trackToggleEvent()
+    }
+  }
+
+  const trackToggleEvent = () => {
+    telemetry.trackEvent(eventTypes.BUTTON_CLICK_EVENT,
+      {
+        ComponentName: componentNames.QUERY_MORE_INFO_BUTTON,
+        QuerySignature: `/${queryVersion}/${requestUrl}`
+      });
   }
 
   const calloutProps = { gapSpace: 0 };
@@ -84,7 +95,7 @@ const SuffixRenderer = () => {
   }
   const hints = getHints();
   const hintsAvailable = hints.length > 0;
-  const infoIcon: IIconProps = {iconName: 'Info'};
+  const infoIcon: IIconProps = { iconName: 'Info' };
 
 
   return (
@@ -116,9 +127,9 @@ const SuffixRenderer = () => {
           setInitialFocus
         >
           <Text block variant='xLarge' className={styles.title} id={labelId}>
-              /{requestUrl}
+            /{requestUrl}
           </Text>
-          <HintList hints={hints} />
+          <HintList hints={hints} requestUrl={requestUrl} />
         </Callout>
       )}
     </>

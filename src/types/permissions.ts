@@ -1,6 +1,5 @@
 import { ITheme } from '@fluentui/react';
 import { IDimensions } from './dimensions';
-import { IQuery } from './query-runner';
 
 export interface IPermission {
   value: string;
@@ -12,32 +11,51 @@ export interface IPermission {
 export interface IPermissionProps {
   theme?: ITheme;
   styles?: object;
-  dimensions: IDimensions;
-  scopes: IScopes;
-  panel: boolean;
-  sample: IQuery[];
-  tokenPresent: boolean;
-  permissionsPanelOpen: boolean;
-  consentedScopes: string[];
-  setPermissions: Function;
-  actions?: {
-    fetchScopes: Function;
-    consentToScopes: Function;
-  };
+  dimensions?: IDimensions;
+  setPermissions?: Function;
+  panel?: boolean;
+  permissionsRef?: any
 }
 
 export interface IPermissionState {
-  permissions: IPermission[];
+  permissions: {
+    specificPermissions: IPermission[];
+    fullPermissions: IPermission[];
+  };
 }
 
 export interface IPermissionsResponse {
-  hasUrl: boolean;
-  scopes: IPermission[];
+  scopes: {
+    specificPermissions: IPermission[];
+    fullPermissions: IPermission[];
+  }
 }
 
 export interface IScopes {
-  pending: boolean;
-  data: IPermission[];
-  hasUrl: boolean;
+  pending: {
+    isSpecificPermissions: boolean;
+    isFullPermissions: boolean;
+    isTenantWidePermissionsGrant?: boolean;
+    isRevokePermissions?: boolean;
+  };
+  data: {
+    specificPermissions: IPermission[];
+    fullPermissions: IPermission[];
+    tenantWidePermissionsGrant?: any
+  };
   error: any | null;
+}
+
+export interface IPermissionGrant {
+  clientId: string;
+  consentType: string;
+  principalId: string | null;
+  resourceId: string;
+  scope: string;
+  id?: string
+}
+
+export interface IOAuthGrantPayload {
+  value: IPermissionGrant[];
+  '@odata.context': string;
 }

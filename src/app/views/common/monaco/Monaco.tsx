@@ -1,6 +1,6 @@
 import { FocusZone } from '@fluentui/react';
-import Editor, { OnChange } from '@monaco-editor/react';
-import React from 'react';
+import Editor, { OnChange, useMonaco } from '@monaco-editor/react';
+import React, { useEffect } from 'react';
 
 import { ThemeContext } from '../../../../themes/theme-context';
 import './monaco.scss';
@@ -13,6 +13,7 @@ interface IMonaco {
   language?: string;
   readOnly?: boolean;
   height?: string;
+  extraInfoElement?: JSX.Element;
 }
 
 export function Monaco(props: IMonaco) {
@@ -25,9 +26,23 @@ export function Monaco(props: IMonaco) {
   }
   const itemHeight = height ? height : '300px';
 
+  const monaco = useMonaco();
+  useEffect(() => {
+    if (monaco) {
+      monaco.languages.json.jsonDefaults.setDiagnosticsOptions({
+        validate: true,
+        allowComments: false,
+        schemas: [],
+        enableSchemaRequest: true,
+        schemaRequest: 'ignore'
+      });
+    }
+  }, [monaco]);
+
   return (
-    <FocusZone disabled={true}>
+    <FocusZone disabled={props.extraInfoElement ? false : true}>
       <div className='monaco-editor'>
+        {props.extraInfoElement}
         <ThemeContext.Consumer >
           {(theme) => (<Editor
             width='800 !important'
@@ -45,8 +60,9 @@ export function Monaco(props: IMonaco) {
               foldingStrategy: 'indentation',
               showFoldingControls: 'always',
               renderLineHighlight: 'none',
-              scrollBeyondLastLine: false,
-              overviewRulerBorder: false
+              scrollBeyondLastLine: true,
+              overviewRulerBorder: false,
+              wordSeparators:'"'
             }}
             onChange={onChange}
             theme={theme === 'light' ? 'vs' : 'vs-dark'}

@@ -1,83 +1,88 @@
 import {
-  Checkbox,
+  DefaultButton,
   FontSizes,
   getId,
+  getTheme,
   IColumn,
-  Icon,
+  IconButton,
+  IIconProps,
   Label,
   PrimaryButton,
-  Selection,
-  styled,
   TooltipHost
 } from '@fluentui/react';
-import React, { Component } from 'react';
-import { FormattedMessage, injectIntl } from 'react-intl';
-import { connect } from 'react-redux';
-import { bindActionCreators, Dispatch } from 'redux';
+import React, { useEffect } from 'react';
+import { FormattedMessage } from 'react-intl';
+import { useDispatch } from 'react-redux';
 
-import { componentNames, telemetry } from '../../../../../telemetry';
-import { IPermission, IPermissionProps, IPermissionState } from '../../../../../types/permissions';
-import { IRootState } from '../../../../../types/root';
-import * as permissionActionCreators from '../../../../services/actions/permissions-action-creator';
+import { AppDispatch, useAppSelector } from '../../../../../store';
+import { IPermission,IPermissionGrant, IPermissionProps } from '../../../../../types/permissions';
+import { consentToScopes, fetchScopes, revokeScopes, fetchAllPrincipalGrants } from
+  '../../../../services/actions/permissions-action-creator';
 import { translateMessage } from '../../../../utils/translate-messages';
 import { classNames } from '../../../classnames';
 import { convertVhToPx } from '../../../common/dimensions/dimensions-adjustment';
 import PanelList from './PanelList';
 import { permissionStyles } from './Permission.styles';
 import TabList from './TabList';
+import messages from '../../../../../messages';
+import { ADMIN_CONSENT_DOC_LINK, CONSENT_TYPE_DOC_LINK,
+  REVOKING_PERMISSIONS_REQUIRED_SCOPES } from '../../../../services/graph-constants';
+import { styles } from '../../query-input/auto-complete/suffix/suffix.styles';
+import { setDescriptionColumnSize } from './util';
+import { componentNames, telemetry } from '../../../../../telemetry';
 
-export class Permission extends Component<IPermissionProps, IPermissionState> {
+export const Permission = (permissionProps?: IPermissionProps): JSX.Element => {
 
-  constructor(props: IPermissionProps) {
-    super(props);
-    this.state = {
-      permissions: []
-    };
-  }
+  const { sampleQuery, scopes, dimensions, authToken, consentedScopes } =
+    useAppSelector((state) => state);
+  const { pending: loading } = scopes;
+  const tokenPresent = !!authToken.token;
+  const dispatch: AppDispatch = useDispatch();
+  const panel = permissionProps?.panel;
 
-  public componentDidMount = () => {
-    this.getPermissions();
-  }
-
-  public componentDidUpdate = (prevProps: IPermissionProps) => {
-    if ((prevProps.sample !== this.props.sample) ||
-      (prevProps.permissionsPanelOpen !== this.props.permissionsPanelOpen)) {
-      this.getPermissions();
-    }
-    const permissions = this.props.scopes.data;
-    if (prevProps.scopes.data !== permissions) {
-      this.setState({
-        permissions
-      });
-    }
-  }
-
-  private getPermissions() {
-    this.props.actions!.fetchScopes();
-  }
-
-  public shouldComponentUpdate(nextProps: IPermissionProps, nextState: IPermissionState) {
-    const shouldUpdate = nextProps.sample !== this.props.sample
-      || nextProps.scopes !== this.props.scopes
-      || nextProps.consentedScopes !== this.props.consentedScopes
-      || nextProps.dimensions !== this.props.dimensions
-      || nextProps.permissionsPanelOpen !== this.props.permissionsPanelOpen
-      || nextState.permissions !== this.state.permissions;
-    return shouldUpdate;
-  }
-
-  public handleConsent = async (permission: IPermission) => {
-    const consentScopes = [permission.value];
-    this.props.actions!.consentToScopes(consentScopes);
+  const classProps = {
+    styles: permissionProps!.styles,
+    theme: permissionProps!.theme
   };
 
-  private renderItemColumn = (item: any, index: number | undefined, column: IColumn | undefined) => {
+  const classes = classNames(classProps);
+  const theme = getTheme();
+  const {panelContainer: panelStyles, tooltipStyles, columnCellStyles, cellTitleStyles,
+    detailsHeaderStyles} = permissionStyles(theme);
+  const tabHeight = convertVhToPx(dimensions.request.height, 110);
+
+  const getPermissions = (): void => {
+    dispatch(fetchScopes());
+  }
+
+  useEffect(() => {
+    dispatch(fetchAllPrincipalGrants());
+  }, [])
+
+  useEffect(() => {
+    getPermissions();
+  },[sampleQuery, scopes.pending.isRevokePermissions, authToken]);
+
+  const handleConsent = async (permission: IPermission): Promise<void> => {
+    const consentScopes = [permission.value];
+    dispatch(consentToScopes(consentScopes));
+  };
+
+  const handleRevoke = async (permission: IPermission) : Promise<void> => {
+    dispatch(revokeScopes(permission.value));
+  };
+
+  const buttonIcon: IIconProps = {
+    iconName: 'Info',
+    style: {
+      position: 'relative',
+      top: '1px',
+      left: '6px'
+    } };
+
+  const renderItemColumn = (item: any, index: any, column: IColumn | undefined) => {
     const hostId: string = getId('tooltipHost');
     const consented = !!item.consented;
-    const classes = classNames(this.props);
-    const {
-      panel
-    }: any = this.props;
 
     if (column) {
       const content = item[column.fieldName as keyof any] as string;
@@ -85,46 +90,16 @@ export class Permission extends Component<IPermissionProps, IPermissionState> {
       switch (column.key) {
 
         case 'isAdmin':
-          if (item.isAdmin) {
-            return <div style={{ textAlign: 'center' }}>
-              <Icon iconName='checkmark' className={classes.checkIcon}
-                aria-label={translateMessage('Admin consent required')} />
-            </div>;
-          } else {
-            return <div style={{ textAlign: 'center' }}>
-              <Icon iconName='StatusCircleErrorX' className={classes.checkIcon}
-                aria-label={translateMessage('Admin consent not required')} />
-            </div>;
-          }
+          return adminLabel(item);
 
         case 'consented':
-          if (consented) {
-            return <Label className={classes.consented}
-            ><FormattedMessage id='Consented' /></Label>;
-          } else {
-            if (!panel) {
-              return <PrimaryButton onClick={() => this.handleConsent(item)}>
-                <FormattedMessage id='Consent' />
-              </PrimaryButton>;
-            }
-            return null;
-          }
+          return consentedButton(consented, item, hostId);
 
         case 'consentDescription':
-          return <>
-            <TooltipHost
-              content={item.consentDescription}
-              id={hostId}
-              calloutProps={{ gapSpace: 0 }}
-              styles={{
-                root: { display: 'block' }
-              }}
-            >
-              <span aria-labelledby={hostId}>
-                {item.consentDescription}
-              </span>
-            </TooltipHost>
-          </>;
+          return consentDescriptionJSX(item, hostId);
+
+        case 'consentType':
+          return consentTypeProperty(consented, item);
 
         default:
           return (
@@ -143,39 +118,135 @@ export class Permission extends Component<IPermissionProps, IPermissionState> {
     }
   };
 
-  private renderDetailsHeader(props: any, defaultRender?: any) {
+  const consentDescriptionJSX = (item: any, hostId: string) => {
+    return(
+      <>
+        <TooltipHost
+          content={item.consentDescription}
+          id={hostId}
+          calloutProps={{ gapSpace: 0 }}
+          styles={{
+            root: { display: 'block' }
+          }}
+        >
+          <span aria-labelledby={hostId}>
+            {item.consentDescription}
+          </span>
+        </TooltipHost></>
+    )
+  }
+
+  const adminLabel = (item: any): JSX.Element => {
+    if (item.isAdmin) {
+      return <div style={{ textAlign: 'center' }}>
+        <Label><FormattedMessage id='Yes' /></Label>
+      </div>;
+    } else {
+      return <div style={{ textAlign: 'center' }}>
+        <Label><FormattedMessage id='No' /></Label>
+      </div>;
+    }
+  }
+
+  const consentedButton = (consented: boolean, item: any, hostId: string): JSX.Element => {
+    if (consented) {
+      if(userHasRequiredPermissions()){
+        return <PrimaryButton onClick={() => handleRevoke(item)} style={{width: '100px', textAlign:'center'}}>
+          <FormattedMessage id='Revoke' />
+        </PrimaryButton>;
+      }
+      else{
+        return <TooltipHost
+          content={translateMessage('You require the following permissions to revoke')}
+          id={hostId}
+          calloutProps={{ gapSpace: 0 }}
+          styles={{ root: { display: 'inline-block' } }}
+        >
+          <DefaultButton
+            toggle
+            checked={false}
+            text={translateMessage('Revoke')}
+            iconProps={buttonIcon}
+            allowDisabledFocus
+            disabled={true}
+            style={{width: '100px'}}
+          />
+        </TooltipHost>;
+      }
+    } else {
+      return <PrimaryButton onClick={() => handleConsent(item)} style={{width: '100px'}}>
+        <FormattedMessage id='Consent' />
+      </PrimaryButton>;
+    }
+  }
+
+  const consentTypeProperty = (consented: boolean, item: any): JSX.Element => {
+    if(scopes && scopes.data.tenantWidePermissionsGrant && scopes.data.tenantWidePermissionsGrant.length > 0
+             && consented) {
+
+      const tenantWideGrant : IPermissionGrant[] = scopes.data.tenantWidePermissionsGrant;
+      const allPrincipalPermissions = getAllPrincipalPermissions(tenantWideGrant);
+      const permissionInAllPrincipal = allPrincipalPermissions.some((permission: string) =>
+        item.value === permission);
+      return permissionConsentTypeLabel(permissionInAllPrincipal);
+    }
+    return <div/>
+  }
+
+  const permissionConsentTypeLabel = (permissionInAllPrincipal : boolean) : JSX.Element => {
+    if(permissionInAllPrincipal){
+      return (
+        <div style={{textAlign: 'center'}}>
+          <Label>{translateMessage('AllPrincipal')}</Label>
+        </div>
+      )
+    }
+    else{
+      return (
+        <div style={{textAlign: 'center'}}>
+          <Label>{translateMessage('Principal')}</Label>
+        </div>
+      )
+    }
+  }
+
+  const getAllPrincipalPermissions = (tenantWidePermissionsGrant: IPermissionGrant[]): string[] => {
+    const allPrincipalPermissions = tenantWidePermissionsGrant.find((permission: any) =>
+      permission.consentType.toLowerCase() === 'AllPrincipals'.toLowerCase());
+    return allPrincipalPermissions ? allPrincipalPermissions.scope.split(' ') : [];
+  }
+
+  const userHasRequiredPermissions = () : boolean => {
+    if(scopes && scopes.data.tenantWidePermissionsGrant && scopes.data.tenantWidePermissionsGrant.length > 0) {
+      const allPrincipalPermissions = getAllPrincipalPermissions(scopes.data.tenantWidePermissionsGrant);
+      const principalAndAllPrincipalPermissions = [...allPrincipalPermissions, ...consentedScopes];
+      const requiredPermissions = REVOKING_PERMISSIONS_REQUIRED_SCOPES.split(' ');
+      return requiredPermissions.every(scope => principalAndAllPrincipalPermissions.includes(scope));
+    }
+    return false;
+  }
+
+  const renderDetailsHeader = (props: any, defaultRender?: any) => {
     return defaultRender!({
       ...props,
       onRenderColumnHeaderTooltip: (tooltipHostProps: any) => {
         return (
-          <TooltipHost {...tooltipHostProps} />
+          <TooltipHost {...tooltipHostProps} styles={tooltipStyles} />
         );
-      }
+      },
+      styles: detailsHeaderStyles
     });
   }
 
-  private renderCustomCheckbox(props: any): any {
-    return (
-      <div style={{ pointerEvents: 'none' }} >
-        <Checkbox checked={props ? props.checked : undefined} />
-      </div>
-    )
-  }
-
-  private getColumns = () => {
-    const {
-      tokenPresent,
-      panel,
-      intl: { messages }
-    }: any = this.props;
-
+  const getColumns = () : IColumn[] => {
+    const columnSizes = setDescriptionColumnSize();
     const columns: IColumn[] = [
       {
         key: 'value',
-        name: messages.Permission,
+        name: translateMessage('Permission'),
         fieldName: 'value',
-        minWidth: 200,
-        maxWidth: 250,
+        minWidth: 150,
+        maxWidth: 200,
         isResizable: true,
         columnActionsMode: 0
       }
@@ -185,11 +256,11 @@ export class Permission extends Component<IPermissionProps, IPermissionState> {
       columns.push(
         {
           key: 'consentDescription',
-          name: messages.Description,
+          name: translateMessage('Description'),
           fieldName: 'consentDescription',
           isResizable: true,
-          minWidth: (tokenPresent) ? 400 : 600,
-          maxWidth: (tokenPresent) ? 600 : 1000,
+          minWidth: (tokenPresent) ? columnSizes.minWidth : 600,
+          maxWidth: (tokenPresent) ? columnSizes.maxWidth : 1000,
           isMultiline: true,
           columnActionsMode: 0
         }
@@ -199,13 +270,15 @@ export class Permission extends Component<IPermissionProps, IPermissionState> {
     columns.push(
       {
         key: 'isAdmin',
-        isResizable: true,
-        name: messages['Admin consent required'],
+        name: translateMessage('Admin consent required'),
         fieldName: 'isAdmin',
         minWidth: (tokenPresent) ? 150 : 200,
         maxWidth: (tokenPresent) ? 200 : 300,
         ariaLabel: translateMessage('Administrator permission'),
-        columnActionsMode: 0
+        isMultiline: true,
+        headerClassName: 'permissionHeader',
+        styles: columnCellStyles,
+        onRenderHeader: () => renderColumnHeader('Admin consent required')
       }
     );
 
@@ -213,104 +286,119 @@ export class Permission extends Component<IPermissionProps, IPermissionState> {
       columns.push(
         {
           key: 'consented',
-          name: messages.Status,
+          name: translateMessage('Status'),
           isResizable: false,
           fieldName: 'consented',
           minWidth: 100,
-          maxWidth: 100
-        }
+          maxWidth: 120,
+          onRenderHeader: () => renderColumnHeader('Status'),
+          styles: columnCellStyles
+        },
+
       );
     }
+    columns.push(
+      {
+        key: 'consentType',
+        name: translateMessage('Consent type'),
+        isResizable: false,
+        fieldName: 'consentType',
+        minWidth: 100,
+        maxWidth: 100,
+        onRenderHeader: () => renderColumnHeader('Consent type'),
+        styles: columnCellStyles,
+        ariaLabel: translateMessage('Permission consent type')
+      }
+    )
     return columns;
   }
 
-  public render() {
-    const classes = classNames(this.props);
-    const { panel, scopes, dimensions } = this.props;
-    const { pending: loading } = scopes;
+  const infoIcon: IIconProps = {
+    iconName: 'Info',
+    styles: cellTitleStyles
+  };
 
-    const {
-      intl: { messages }
-    }: any = this.props;
-
-    const selection = new Selection({
-      onSelectionChanged: () => {
-        const selected = selection.getSelection() as any;
-        const permissionsToConsent: string[] = [];
-        if (selected.length > 0) {
-          selected.forEach((option: IPermission) => {
-            permissionsToConsent.push(option.value);
-          });
-        }
-        this.props.setPermissions(permissionsToConsent);
-      }
-    });
-
-    const tabHeight = convertVhToPx(dimensions.request.height, 110);
-
-    if (loading) {
-      return <Label>
-        <FormattedMessage id={'Fetching permissions'} />...
-      </Label>;
+  const openExternalWebsite = (url: string) => {
+    switch(url){
+      case 'Consent type':
+        window.open(CONSENT_TYPE_DOC_LINK, '_blank');
+        trackLinkClickedEvent(CONSENT_TYPE_DOC_LINK, componentNames.CONSENT_TYPE_DOC_LINK)
+        break;
+      case 'Admin consent required':
+        window.open(ADMIN_CONSENT_DOC_LINK, '_blank');
+        trackLinkClickedEvent(ADMIN_CONSENT_DOC_LINK, componentNames.ADMIN_CONSENT_DOC_LINK);
+        break;
     }
-
-    const displayPermissionsPanel = () => {
-      return <div data-is-scrollable={true} className={classes.panelContainer}>
-        <PanelList
-          classes={classes}
-          messages={messages}
-          selection={selection}
-          columns={this.getColumns()}
-          renderItemColumn={(item?: any, index?: number, column?: IColumn) =>
-            this.renderItemColumn(item, index, column)}
-          renderDetailsHeader={this.renderDetailsHeader}
-          renderCustomCheckbox={this.renderCustomCheckbox}
-        />
-      </div>
-    };
-
-    const displayPermissionsAsTab = () => {
-      return <TabList
-        columns={this.getColumns()}
-        maxHeight={tabHeight}
-        renderItemColumn={(item?: any, index?: number, column?: IColumn) =>
-          this.renderItemColumn(item, index, column)}
-        renderDetailsHeader={this.renderDetailsHeader}
-        classes={classes}
-      />;
-    };
-
-    if (panel) {
-      return displayPermissionsPanel();
-    }
-
-    return displayPermissionsAsTab();
   }
-}
 
-function mapStateToProps({ sampleQuery, scopes, authToken, consentedScopes,
-  dimensions, permissionsPanelOpen }: IRootState) {
-  return {
-    sample: sampleQuery,
-    scopes,
-    tokenPresent: authToken.token,
-    consentedScopes,
-    dimensions,
-    permissionsPanelOpen
+  const trackLinkClickedEvent = (link: string, componentName: string) => {
+    telemetry.trackLinkClickEvent(link, componentName);
+  }
+
+
+  const renderColumnHeader = (headerText: string) => {
+    if(headerText === 'Status'){
+      return (
+        <span style={{position: 'relative', top: '2px', left: '2px', flex:1}}>
+          {translateMessage('Status')}
+        </span>
+      )
+    }
+
+    return (<div style={{ textAlign: 'center'}}>
+      <IconButton
+        iconProps={infoIcon}
+        className={styles.iconButton}
+        id={'buttonId'}
+        ariaLabel={translateMessage(headerText)}
+        onClick={() => openExternalWebsite(headerText)}
+      >
+      </IconButton>
+      <span style={{position: 'relative', left: '4px', margin: '-8px'}}>
+        {translateMessage(headerText)}
+      </span>
+    </div>)
+  }
+
+  const displayPermissionsPanel = () : JSX.Element => {
+    return <div data-is-scrollable={true} style={panelStyles}>
+      <PanelList
+        classes={classes}
+        messages={messages}
+        columns={getColumns()}
+        renderItemColumn={(item?: any, index?: number, column?: IColumn) =>
+          renderItemColumn(item, index, column)}
+        renderDetailsHeader={renderDetailsHeader}
+      />
+    </div>
   };
-}
 
-function mapDispatchToProps(dispatch: Dispatch): object {
-  return {
-    actions: bindActionCreators({
-      ...permissionActionCreators
-    }, dispatch)
+  const displayPermissionsAsTab = (): JSX.Element => {
+    if (loading.isSpecificPermissions) {
+      return displayLoadingPermissionsText();
+    }
+
+    return <TabList
+      columns={getColumns()}
+      maxHeight={tabHeight}
+      renderItemColumn={(item?: any, index?: number, column?: IColumn) =>
+        renderItemColumn(item, index, column)}
+      renderDetailsHeader={renderDetailsHeader}
+      classes={classes}
+    />;
   };
-}
 
-const styledPermissions = styled(Permission, permissionStyles as any);
-// @ts-ignore
-const IntlPermission = injectIntl(styledPermissions);
-// @ts-ignore
-const trackedComponent = telemetry.trackReactComponent(IntlPermission, componentNames.MODIFY_PERMISSIONS_TAB);
-export default connect(mapStateToProps, mapDispatchToProps)(trackedComponent);
+  const displayLoadingPermissionsText = () => {
+    return (
+      <Label style={{marginLeft: '12px'}}>
+        <FormattedMessage id={'Fetching permissions'} />...
+      </Label>
+    );
+  }
+
+  return (
+    <>
+      {panel ? displayPermissionsPanel() : displayPermissionsAsTab()}
+    </>
+  );
+}

@@ -6,20 +6,34 @@ export const appStyles = (theme: ITheme) => {
       background: theme.semanticColors.bodyBackground,
       color: theme.semanticColors.bodyText,
       paddingTop: theme.spacing.s1,
-      width: '100%'
+      height: '100%',
+      paddingRight: '15px',
+      paddingLeft: '4px',
+      paddingBottom: '5px',
+      marginLeft: 'auto',
+      marginRight: 'auto'
+    },
+    appRow: {
+      display: 'flex',
+      flexWrap: 'no-wrap',
+      alignItems: 'stretch'
     },
     tryItMessage: {
       marginBottom: theme.spacing.s1
     },
     sidebar: {
       background: theme.palette.neutralLighter,
-      paddingLeft: 10
+      paddingRight: 10,
+      paddingLeft: 10,
+      marginRight: 10,
+      marginBottom: 9
     },
     sidebarMini: {
       background: theme.palette.neutralLighter,
       maxWidth: '65px',
       minWidth: '55px',
-      padding: 10
+      padding: 10,
+      marginBottom: 9
     },
     layoutExtra: {
       minWidth: '95%',
@@ -27,9 +41,6 @@ export const appStyles = (theme: ITheme) => {
     },
     separator: {
       borderBottom: '1px solid ' + theme.palette.neutralLight
-    },
-    links: {
-      color: `${theme.palette.blueMid} !important`
     },
     sidebarToggle: {
       marginBottom: theme.spacing.s1,
@@ -57,8 +68,10 @@ export const appStyles = (theme: ITheme) => {
     statusAreaMobileScreen: {
       marginTop: 5
     },
-    statusAreaLaptopScreen: {
-      marginTop: 0
+    statusAreaFullScreen: {
+      marginTop: 6,
+      position: 'relative',
+      bottom: 0
     },
     vResizeHandle: {
       zIndex: 1,
@@ -73,8 +86,8 @@ export const appStyles = (theme: ITheme) => {
     },
     feedbackButtonMobileDisplay: {
       position: 'absolute',
-      top: '-1px',
-      right: '15px'
+      top: '13px',
+      right: '10px'
     }
   };
 };

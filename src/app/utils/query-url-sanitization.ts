@@ -2,6 +2,7 @@
 import { IQuery } from '../../types/query-runner';
 import {
   isAllAlpha,
+  isPlaceHolderSegment,
   sanitizeQueryParameter
 } from './query-parameter-sanitization';
 import { parseSampleUrl } from './sample-url-generation';
@@ -79,7 +80,6 @@ function sanitizedQueryUrl(url: string): string {
         return `${match.substring(0, match.indexOf(':'))}:<value>`;
       }
     );
-
     // Split requestUrl into segments that can be sanitized individually
     const urlSegments = resourceUrl.split('/');
     urlSegments.forEach((segment, index) => {
@@ -134,6 +134,10 @@ function sanitizePathSegment(previousSegment: string, segment: string): string {
     return `${segment.substring(0, openingBracketIndex)}(${sanitizedText})`;
   }
 
+  if (isPlaceHolderSegment(segment)) {
+    return segment;
+  }
+
   if (!isAllAlpha(previousSegment) && !isDeprecation(previousSegment)) {
     previousSegment = 'unknown';
   }
@@ -146,8 +150,10 @@ function sanitizePathSegment(previousSegment: string, segment: string): string {
  * @param queryString
  */
 function sanitizeQueryParameters(queryString: string): string {
-  // remove leading ? from query string
-  queryString = queryString.substring(1);
+  // remove leading ? from query string and decode
+  queryString = decodeURIComponent(
+    queryString.substring(1).replace(/\+/g, ' ')
+  );
   return queryString.split('&').map(sanitizeQueryParameter).join('&');
 }
 

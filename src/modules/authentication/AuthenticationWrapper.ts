@@ -41,16 +41,46 @@ export class AuthenticationWrapper implements IAuthenticationWrapper {
 
   public async logIn(sessionId = ''): Promise<AuthenticationResult> {
     this.consentingToNewScopes = false;
+    // eslint-disable-next-line no-useless-catch
     try {
       return await this.getAuthResult([], sessionId);
     } catch (error) {
-      throw new Error(`${error}`);
+      throw error;
     }
   }
 
-  public logOut() {
-    this.deleteHomeAccountId();
-    msalApplication.logoutRedirect();
+  public async logInWithOther() {
+    const popUpRequest: PopupRequest = {
+      scopes: defaultScopes,
+      authority: this.getAuthority(),
+      prompt: 'select_account',
+      redirectUri: getCurrentUri(),
+      extraQueryParameters: { mkt: geLocale }
+    };
+    // eslint-disable-next-line no-useless-catch
+    try {
+      const result = await msalApplication.loginPopup(popUpRequest);
+      this.storeHomeAccountId(result.account!);
+      return result;
+    } catch (error: any) {
+      const { errorCode } = error;
+      if (errorCode === 'interaction_in_progress') {
+        this.eraseInteractionInProgressCookie();
+      }
+      throw error;
+    }
+  }
+
+  public async logOut() {
+    const homeAccountId = this.getHomeAccountId();
+    if (homeAccountId) {
+      const currentAccount = msalApplication.getAccountByHomeId(homeAccountId);
+      const logoutHint = currentAccount!.idTokenClaims?.login_hint;
+      await msalApplication.logoutPopup({ logoutHint });
+    } else {
+      this.deleteHomeAccountId();
+      await msalApplication.logoutRedirect();
+    }
   }
 
   public async logOutPopUp() {
@@ -65,11 +95,11 @@ export class AuthenticationWrapper implements IAuthenticationWrapper {
    */
   public async consentToScopes(scopes: string[] = []): Promise<AuthenticationResult> {
     this.consentingToNewScopes = true;
+    // eslint-disable-next-line no-useless-catch
     try {
-      const authResult = await this.loginWithInteraction(scopes);
-      return authResult;
+      return await this.loginWithInteraction(scopes);
     } catch (error) {
-      throw new Error(`${error}`);
+      throw error;
     }
   }
 
@@ -78,7 +108,7 @@ export class AuthenticationWrapper implements IAuthenticationWrapper {
       return undefined;
     }
 
-    const allAccounts = msalApplication.getAllAccounts();
+    const allAccounts: AccountInfo[] = msalApplication.getAllAccounts();
     if (!allAccounts || allAccounts.length === 0) {
       return undefined;
     }
@@ -138,7 +168,6 @@ export class AuthenticationWrapper implements IAuthenticationWrapper {
       return result;
     } catch (error: any) {
       if (error instanceof InteractionRequiredAuthError || !this.getAccount()) {
-
         return this.loginWithInteraction(silentRequest.scopes, sessionId);
 
       } else if (signInAuthError(error)) {

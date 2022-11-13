@@ -45,7 +45,7 @@ const sassRegex = /\.(scss|sass)$/;
 const sassModuleRegex = /\.module\.(scss|sass)$/;
 
 const hasJsxRuntime = (() => {
-  if(process.env.DISABLE_NEW_JSX_TRANSFORM === 'true') {
+  if (process.env.DISABLE_NEW_JSX_TRANSFORM === 'true') {
     return false;
   }
 })
@@ -417,7 +417,7 @@ module.exports = function (webpackEnv) {
         maxChunks: 1
       }),
       new MonacoWebpackPlugin({
-        languages: ['json', 'javascript', 'java', 'objective-c', 'csharp', 'html', 'powershell', 'go']
+        languages: ['json', 'javascript', 'java', 'csharp', 'html', 'powershell', 'go']
       }),
       // Generates an `index.html` file with the <script> injected.
       new HtmlWebpackPlugin(
@@ -516,53 +516,11 @@ module.exports = function (webpackEnv) {
           // public/ and not a SPA route
           new RegExp('/[^/]+\\.[^/]+$')
         ],
-        maximumFileSizeToCacheInBytes: 6 * 1024 * 1024
+        maximumFileSizeToCacheInBytes: 10 * 1024 * 1024
       }),
       // TypeScript type checking
       useTypeScript &&
-      new ForkTsCheckerWebpackPlugin({
-        typescript: {
-          typescriptPath: resolve.sync('typescript', {
-            basedir: paths.appNodeModules
-          }),
-          async: false,
-          configOverwrite: {
-            compilerOptions: {
-              sourceMap: isEnvProduction
-                ? shouldUseSourceMap
-                : isEnvDevelopment,
-              skipLibCheck: true,
-              inlineSourceMap: false,
-              declarationMap: false,
-              noEmit: true,
-              incremental: true,
-              tsBuildInfoFile: paths.appTsBuildInfoFile
-            }
-          },
-          context: paths.appPath,
-          diagnosticOptions: {
-            syntactic: true
-          },
-          mode: 'write-references'
-        },
-        issue: {
-          // This one is specifically to match during CI tests,
-          // as micromatch doesn't match
-          // '../cra-template-typescript/template/src/App.tsx'
-          // otherwise.
-          include: [
-            { file: '../**/src/**/*.{ts,tsx}' },
-            { file: '**/src/**/*.{ts,tsx}' }
-          ],
-          exclude: [
-            { file: '**/src/**/__tests__/**' },
-            { file: '**/src/**/?(*.){spec|test}.*' },
-            { file: '**/src/setupProxy.*' },
-            { file: '**/src/setupTests.*' }
-          ]
-        },
-        logger: { infrastructure: 'silent' }
-      })
+      new ForkTsCheckerWebpackPlugin()
     ].filter(Boolean),
     // Turn off performance processing because we utilize
     // our own hints via the FileSizeReporter

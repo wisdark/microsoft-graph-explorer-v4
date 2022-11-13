@@ -8,18 +8,28 @@ import {
   setAuthenticationPending,
   storeScopes, signIn, signOut
 } from '../../../app/services/actions/auth-action-creators';
+import { AppAction } from '../../../types/action';
 
 import configureMockStore from 'redux-mock-store';
 
 import thunk from 'redux-thunk';
+import { HOME_ACCOUNT_KEY } from '../graph-constants';
 const middlewares = [thunk];
 const mockStore = configureMockStore(middlewares);
 window.open = jest.fn();
-describe('Auth Action Creators test', () => {
-  it('tests the authentication pending action', () => {
+jest.spyOn(window.sessionStorage.__proto__, 'clear');
+
+jest.spyOn(window.localStorage.__proto__, 'setItem');
+jest.spyOn(window.localStorage.__proto__, 'getItem');
+jest.spyOn(window.localStorage.__proto__, 'removeItem');
+
+window.localStorage.setItem(HOME_ACCOUNT_KEY, '1234567');
+
+describe('Auth Action Creators', () => {
+  it('should dispatch AUTHENTICATION_PENDING when setAuthenticationPending() is called', () => {
     // Arrange
     const response: boolean = true;
-    const expectedAction = {
+    const expectedAction: AppAction = {
       type: AUTHENTICATION_PENDING,
       response
     }
@@ -29,12 +39,12 @@ describe('Auth Action Creators test', () => {
 
     // Assert
     expect(action).toEqual(expectedAction);
-  })
+  });
 
-  it('tests the auth token success function', () => {
+  it('should dispatch GET_AUTH_TOKEN_SUCCESS when getAuthTokenSuccess() is called', () => {
     // Arrange
     const response: boolean = true;
-    const expectedAction = {
+    const expectedAction: AppAction = {
       type: GET_AUTH_TOKEN_SUCCESS,
       response
     }
@@ -44,12 +54,12 @@ describe('Auth Action Creators test', () => {
 
     // Assert
     expect(action).toEqual(expectedAction);
-  })
+  });
 
-  it('tests the scopes success action', () => {
+  it('should dispatch GET_CONSENTED_SCOPES_SUCCESS when getConsentedScopesSuccess() is called', () => {
     // Arrange
     const response: string[] = ['mail.read', 'profile.read'];
-    const expectedAction = {
+    const expectedAction: AppAction = {
       type: GET_CONSENTED_SCOPES_SUCCESS,
       response
     }
@@ -59,12 +69,12 @@ describe('Auth Action Creators test', () => {
 
     // Assert
     expect(action).toEqual(expectedAction);
-  })
+  });
 
-  it('tests sign out success action', () => {
+  it('should dispatch LOGOUT_SUCCESS when signOutSuccess() is called', () => {
     // Arrange
     const response: boolean = true;
-    const expectedAction = {
+    const expectedAction: AppAction = {
       type: LOGOUT_SUCCESS,
       response
     }
@@ -73,12 +83,12 @@ describe('Auth Action Creators test', () => {
 
     // Assert
     expect(action).toEqual(expectedAction);
-  })
+  });
 
-  it('Dispatches getConsentedScopesSuccess when storeScopes is called', () => {
+  it('should dispatch GET_CONSENTED_SCOPES_SUCCESS when storeScopes() is called', () => {
     // Arrange
     const response: string[] = ['mail.read', 'profile.read'];
-    const expectedAction = {
+    const expectedAction: AppAction = {
       type: GET_CONSENTED_SCOPES_SUCCESS,
       response
     }
@@ -92,12 +102,12 @@ describe('Auth Action Creators test', () => {
     // Assert
     expect(store.getActions()).toEqual([expectedAction]);
 
-  })
+  });
 
-  it('It dispatches the getAuthTokenSuccess action creater when signIn is called', () => {
+  it('should dispatch GET_AUTH_TOKEN_SUCCESS when signIn() is called', () => {
     // Arrange
     const response: boolean = true;
-    const expectedAction = {
+    const expectedAction: AppAction = {
       type: GET_AUTH_TOKEN_SUCCESS,
       response
     }
@@ -106,16 +116,16 @@ describe('Auth Action Creators test', () => {
     const store = mockStore({ authToken: {} });
 
     // @ts-ignore
-    store.dispatch(signIn(response));
+    store.dispatch(signIn());
 
     // Assert
     expect(store.getActions()).toEqual([expectedAction]);
-  })
+  });
 
-  it('Dispatches signout success when signOut is called', () => {
+  it('should dispatch LOGOUT_SUCCESS when signOutSuccess() is called', () => {
     // Arrange
-    const response: boolean = false;
-    const expectedAction = {
+    const response: boolean = true;
+    const expectedAction: AppAction = {
       type: LOGOUT_SUCCESS,
       response
     }
@@ -129,25 +139,36 @@ describe('Auth Action Creators test', () => {
     // Assert
     expect(store.getActions()).toEqual([expectedAction]);
 
-  })
+  });
 
-  it('Tests signOut method', () => {
+  it('should confirm that a user can sign out', () => {
     // Arrange
+    window.open = jest.fn();
     const store = mockStore({});
     const expectedActions = [
       {
         type: AUTHENTICATION_PENDING,
         response: true
+      },
+      {
+        type: LOGOUT_SUCCESS,
+        response: true
       }
     ];
-
     // Act and assert
+    // home account key is available before signing out
+    expect(window.localStorage.getItem(HOME_ACCOUNT_KEY)).toBe('1234567');
     //@ts-ignore
     store.dispatch(signOut())
+    const actions = store.getActions();
 
-    expect(store.getActions()[0].type).toEqual(expectedActions[0].type);
+    // logoutPop launches a popup window.
+    expect(window.open).toHaveBeenCalled();
+    expect(window.localStorage.removeItem).toHaveBeenCalledWith(HOME_ACCOUNT_KEY);
 
-  })
+    // after signing out, the home account key is removed
+    expect(window.localStorage.getItem(HOME_ACCOUNT_KEY)).toBe(null);
+    expect(actions).toEqual(expectedActions);
 
-
+  });
 })

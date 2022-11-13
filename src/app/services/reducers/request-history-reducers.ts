@@ -1,12 +1,13 @@
-import { IAction } from '../../../types/action';
+import { AppAction } from '../../../types/action';
 import { IHistoryItem } from '../../../types/history';
 import {
   ADD_HISTORY_ITEM_SUCCESS,
+  BULK_ADD_HISTORY_ITEMS_SUCCESS,
   REMOVE_ALL_HISTORY_ITEMS_SUCCESS,
   REMOVE_HISTORY_ITEM_SUCCESS
 } from '../redux-constants';
 
-export function history(state: any[] = [], action: IAction): any {
+export function history(state: any[] = [], action: AppAction): any {
   switch (action.type) {
     case ADD_HISTORY_ITEM_SUCCESS:
       let historyItems = [...state, action.response];
@@ -16,6 +17,10 @@ export function history(state: any[] = [], action: IAction): any {
         }) < 0 ? [...current, compare] : current;
       }, []);
 
+      return historyItems;
+
+    case BULK_ADD_HISTORY_ITEMS_SUCCESS:
+      historyItems = [...state, ...action.response];
       return historyItems;
 
     case REMOVE_HISTORY_ITEM_SUCCESS:

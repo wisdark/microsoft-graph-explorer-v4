@@ -1,20 +1,21 @@
 import configureMockStore from 'redux-mock-store';
 import thunk from 'redux-thunk';
+import {
+  addResourcePaths, fetchResources, fetchResourcesError,
+  fetchResourcesPending, fetchResourcesSuccess, removeResourcePaths
+} from '../../../app/services/actions/resource-explorer-action-creators';
+import {
+  FETCH_RESOURCES_ERROR,
+  FETCH_RESOURCES_PENDING, FETCH_RESOURCES_SUCCESS, RESOURCEPATHS_ADD_SUCCESS, RESOURCEPATHS_DELETE_SUCCESS
+} from '../../../app/services/redux-constants';
+import { AppAction } from '../../../types/action';
+import { Mode } from '../../../types/enums';
+import { ApplicationState } from '../../../types/root';
 
 const middlewares = [thunk];
 const mockStore = configureMockStore(middlewares);
-import {
-  addResourcePaths, fetchResourcesSuccess, fetchResourcesError,
-  fetchResourcesPending, removeResourcePaths, fetchResources
-} from '../../../app/services/actions/resource-explorer-action-creators';
-import {
-  FETCH_RESOURCES_SUCCESS, RESOURCEPATHS_ADD_SUCCESS, RESOURCEPATHS_DELETE_SUCCESS, FETCH_RESOURCES_ERROR,
-  FETCH_RESOURCES_PENDING
-} from '../../../app/services/redux-constants';
-import { Mode } from '../../../types/enums';
-import { IRootState } from '../../../types/root';
 
-const mockState: IRootState = {
+const mockState: ApplicationState = {
   devxApi: {
     baseUrl: 'https://graph.microsoft.com/v1.0/me',
     parameters: '$count=true'
@@ -50,9 +51,11 @@ const mockState: IRootState = {
     error: null
   },
   scopes: {
-    pending: false,
-    data: [],
-    hasUrl: false,
+    pending: { isSpecificPermissions: false, isFullPermissions: false },
+    data: {
+      fullPermissions: [],
+      specificPermissions: []
+    },
     error: null
   },
   history: [],
@@ -143,10 +146,10 @@ describe('Resource Explorer actions', () => {
     fetchMock.resetMocks();
   });
 
-  it('creates FETCH_RESOURCES_SUCCESS when fetchResourcesSuccess is called', () => {
+  it('should dispatch FETCH_RESOURCES_SUCCESS when fetchResourcesSuccess() is called', () => {
 
     const response = fetchMock.mockResponseOnce(JSON.stringify({ ok: true }));
-    const expectedAction = {
+    const expectedAction: AppAction = {
       type: FETCH_RESOURCES_SUCCESS,
       response
     };
@@ -155,7 +158,7 @@ describe('Resource Explorer actions', () => {
     expect(action).toEqual(expectedAction);
   });
 
-  it('Adds resource paths to state', () => {
+  it('should dispatch RESOURCEPATHS_ADD_SUCCESS when addResourcePaths() is called with valid paths', () => {
 
     const expectedActions = [
       {
@@ -174,7 +177,7 @@ describe('Resource Explorer actions', () => {
     expect(store_.getActions()).toEqual(expectedActions);
   });
 
-  it('dispatches RESOURCEPATHS_DELETE_SUCCESS when removeResourcePaths is dispatched', () => {
+  it('should dispatch RESOURCEPATHS_DELETE_SUCCESS when removeResourcePaths() is dispatched', () => {
 
     const expectedActions = [
       {
@@ -193,10 +196,10 @@ describe('Resource Explorer actions', () => {
     expect(store_.getActions()).toEqual(expectedActions);
   })
 
-  it('creates FETCH_RESOURCES_ERROR when fetchResourcesError is called', () => {
+  it('should dispatch FETCH_RESOURCES_ERROR when fetchResourcesError() is called', () => {
     // Arrange
     const response = {};
-    const expectedAction = {
+    const expectedAction: AppAction = {
       type: FETCH_RESOURCES_ERROR,
       response
     }
@@ -208,10 +211,11 @@ describe('Resource Explorer actions', () => {
     expect(action).toEqual(expectedAction);
   })
 
-  it('crates FETCH_RESOURCES_PENDING when resources are being fetched', () => {
+  it('should dispatch FETCH_RESOURCES_PENDING when fetchResourcesPending() is called', () => {
     // Arrange
-    const expectedAction = {
-      type: FETCH_RESOURCES_PENDING
+    const expectedAction: AppAction = {
+      type: FETCH_RESOURCES_PENDING,
+      response: null
     }
 
     // Act
@@ -221,10 +225,10 @@ describe('Resource Explorer actions', () => {
     expect(action).toEqual(expectedAction);
   });
 
-  it('fetches resource paths and dispatches FETCH_RESOURCES_SUCCESS', () => {
+  it('should dispatch FETCH_RESOURCES_PENDING and FETCH_RESOURCES_SUCCESS when fetchResources() is called', () => {
     // Arrange
-    const expectedAction = [
-      { type: FETCH_RESOURCES_PENDING },
+    const expectedAction: AppAction[] = [
+      { type: FETCH_RESOURCES_PENDING, response: null },
       {
         type: FETCH_RESOURCES_SUCCESS,
         response: { paths, ok: true }
@@ -241,6 +245,5 @@ describe('Resource Explorer actions', () => {
         expect(store.getActions()).toEqual(expectedAction);
       })
       .catch((e: Error) => { throw e })
-  })
-
+  });
 });

@@ -1,10 +1,10 @@
 import { Link, MessageBar } from '@fluentui/react';
 import React, { Fragment } from 'react';
 import { FormattedMessage } from 'react-intl';
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch } from 'react-redux';
 
 import { IQuery } from '../../../types/query-runner';
-import { IRootState } from '../../../types/root';
+import { AppDispatch, useAppSelector } from '../../../store';
 import { setSampleQuery } from '../../services/actions/query-input-action-creators';
 import { clearQueryStatus } from '../../services/actions/query-status-action-creator';
 import { GRAPH_URL } from '../../services/graph-constants';
@@ -14,9 +14,9 @@ import {
 } from '../../utils/status-message';
 
 const StatusMessages = () => {
-  const dispatch = useDispatch();
+  const dispatch: AppDispatch = useDispatch();
   const { queryRunnerStatus, sampleQuery } =
-    useSelector((state: IRootState) => state);
+    useAppSelector((state) => state);
 
   function displayStatusMessage(message: string, urls: any) {
     const { matches, parts } = getMatchesAndParts(message);
@@ -47,26 +47,26 @@ const StatusMessages = () => {
   function setQuery(link: string) {
     const query: IQuery = { ...sampleQuery };
     query.sampleUrl = link;
+    query.selectedVerb = 'GET';
     dispatch(setSampleQuery(query));
   }
 
   if (queryRunnerStatus) {
     const { messageType, statusText, status, duration, hint } = queryRunnerStatus;
     let urls: any = {};
-    let message = statusText;
-    const extractedUrls = extractUrl(statusText);
+    let message = status.toString();
+    const extractedUrls = extractUrl(status.toString());
     if (extractedUrls) {
-      message = replaceLinks(statusText);
+      message = replaceLinks(status.toString());
       urls = convertArrayToObject(extractedUrls);
     }
-
 
     return <MessageBar messageBarType={messageType}
       isMultiline={true}
       onDismiss={() => dispatch(clearQueryStatus())}
       dismissButtonAriaLabel='Close'
       aria-live={'assertive'}>
-      {`${status} - `}{displayStatusMessage(message, urls)}
+      {`${statusText} - `}{displayStatusMessage(message, urls)}
 
       {duration && <>
         {` - ${duration}`}<FormattedMessage id='milliseconds' />

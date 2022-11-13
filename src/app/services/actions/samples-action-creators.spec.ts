@@ -5,17 +5,17 @@ import {
 import {
   SAMPLES_FETCH_SUCCESS, SAMPLES_FETCH_PENDING, SAMPLES_FETCH_ERROR
 } from '../redux-constants';
+import { AppAction } from '../../../types/action';
 
-
-describe('actions', () => {
+describe('Samples action creators', () => {
   beforeEach(() => {
     fetchMock.resetMocks();
   });
 
-  it('creates SAMPLES_FETCH_SUCCESS when fetchSamplesSuccess is called', () => {
+  it('should dispatch SAMPLES_FETCH_SUCCESS when fetchSamplesSuccess() is called', () => {
 
     const response = fetchMock.mockResponseOnce(JSON.stringify({ ok: true }));
-    const expectedAction = {
+    const expectedAction: AppAction = {
       type: SAMPLES_FETCH_SUCCESS,
       response
     };
@@ -24,24 +24,25 @@ describe('actions', () => {
     expect(action).toEqual(expectedAction);
   });
 
-  it('creates SAMPLES_FETCH_PENDING when fetchSamplesPending is called', () => {
-    const expectedAction = {
-      type: SAMPLES_FETCH_PENDING
+  it('should dispatch SAMPLES_FETCH_PENDING when fetchSamplesPending() is called', () => {
+    const expectedAction: AppAction = {
+      type: SAMPLES_FETCH_PENDING,
+      response: null
     };
 
     const action = fetchSamplesPending();
     expect(action).toEqual(expectedAction);
   })
 
-  it('creates SAMPLES_FETCH_ERROR when fetchSamplesError is called', () => {
+  it('should dispatch SAMPLES_FETCH_ERROR when fetchSamplesError() is called', () => {
     const response = new Error('error');
-    const expectedAction = {
+    const expectedAction: AppAction = {
       type: SAMPLES_FETCH_ERROR,
       response
     };
 
     const action = fetchSamplesError(response);
     expect(action).toEqual(expectedAction);
-  })
+  });
 
 });

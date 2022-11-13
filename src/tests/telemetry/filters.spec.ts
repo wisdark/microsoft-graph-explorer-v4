@@ -1,12 +1,13 @@
 import { ITelemetryItem } from '@microsoft/applicationinsights-web';
 import {
-  filterTelemetryTypes, filterRemoteDependencyData, addCommonTelemetryItemProperties, sanitizeTelemetryItemUriProperty,
-  sanitizeStackTrace
+  filterTelemetryTypes,
+  filterRemoteDependencyData,
+  addCommonTelemetryItemProperties,
+  sanitizeTelemetryItemUriProperty
 } from '../../../src/telemetry/filters';
 
-
-describe('Tests telemetry filters', () => {
-  it('Ensures telemetry types to include are correct', () => {
+describe('Telemetry filters should', () => {
+  it('ensure telemetry types to include are correct when filterTelemetryTypes() is called', () => {
     // Arrange
     const envelope: ITelemetryItem = {
       ver: '1.0',
@@ -21,10 +22,9 @@ describe('Tests telemetry filters', () => {
 
     // Assert
     expect(result).toBe(true);
-
   });
 
-  it('Returns true by default', () => {
+  it('return true by default when filterRemoteDependencyData() is called', () => {
     // Arrange
     const envelope: ITelemetryItem = {
       ver: '1.0',
@@ -41,7 +41,7 @@ describe('Tests telemetry filters', () => {
     expect(result).toBe(true);
   });
 
-  it('Adds common telemetry item properties', () => {
+  it('add common telemetry item properties and return true when addCommonTelemetryItemProperties is called', () => {
     // Arrange
     const envelope: ITelemetryItem = {
       ver: '1.0',
@@ -56,9 +56,9 @@ describe('Tests telemetry filters', () => {
 
     // Assert
     expect(result).toBe(true);
-  });
+  })
 
-  it('Sanitizes telemetry item uri property', () => {
+  it('sanitize telemetry item uri property', () => {
     // Arrange
     const envelope: ITelemetryItem = {
       ver: '1.0',
@@ -77,35 +77,4 @@ describe('Tests telemetry filters', () => {
     // Assert
     expect(result).toBe(true);
   })
-
-  it('Sanitizes stack trace', () => {
-    // Arrange
-    const envelope: ITelemetryItem = {
-      ver: '1.0',
-      name: 'test',
-      time: '',
-      iKey: '',
-      baseType: 'ExceptionData',
-      baseData: {
-        exceptions: [
-          {
-            parsedStack: [
-              {
-                fileName: 'webpack-internal',
-                assembly: 'Assembly'
-              }
-            ],
-            stack: '\n First line of test, \n Second line of test'
-          }
-        ]
-      }
-    }
-
-    // Act
-    const result = sanitizeStackTrace(envelope);
-
-    // Assert
-    expect(result).toBe(true);
-  })
-
 })

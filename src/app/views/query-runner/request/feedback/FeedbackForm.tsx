@@ -1,13 +1,14 @@
+import { getTheme, MessageBarType } from '@fluentui/react';
 import { makeFloodgate } from '@ms-ofb/officebrowserfeedbacknpm/Floodgate';
 import { AuthenticationType } from '@ms-ofb/officebrowserfeedbacknpm/scripts/app/Configuration/IInitOptions';
 import { OfficeBrowserFeedback } from '@ms-ofb/officebrowserfeedbacknpm/scripts/app/Window/Window';
-import { getTheme, MessageBarType } from '@fluentui/react';
-import React, { useState, useEffect } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import React, { useEffect, useState } from 'react';
+import { useDispatch } from 'react-redux';
 
 import { geLocale } from '../../../../../appLocale';
 import { authenticationWrapper } from '../../../../../modules/authentication';
-import { IRootState } from '../../../../../types/root';
+import { AppDispatch, useAppSelector } from '../../../../../store';
+import { componentNames, telemetry } from '../../../../../telemetry';
 import { setQueryResponseStatus } from '../../../../services/actions/query-status-action-creator';
 import { ACCOUNT_TYPE } from '../../../../services/graph-constants';
 import { translateMessage } from '../../../../utils/translate-messages';
@@ -16,11 +17,11 @@ import CampaignDefinitions from './campaignDefinitions';
 import { uiStringMap } from './uiStrings';
 
 export default function FeedbackForm({ activated, onDismissSurvey, onDisableSurvey }: any) {
-  const dispatch = useDispatch();
+  const dispatch: AppDispatch = useDispatch();
   const [officeBrowserFeedback, setOfficeBrowserFeedback] = useState<any>(undefined);
   const currentTheme = getTheme();
   const { NODE_ENV } = process.env;
-  const { profile, policies } = useSelector((state: IRootState) => state);
+  const { profile, policies } = useAppSelector((state) => state);
 
   function surveyActivated(launcher: any, surveyItem: any) {
     return surveyItem;
@@ -70,6 +71,7 @@ export default function FeedbackForm({ activated, onDismissSurvey, onDisableSurv
     showCustomSurvey();
   }
 
+
   async function loadAndInitialize(
     floodgateObject: any,
     // eslint-disable-next-line no-unused-vars
@@ -103,6 +105,9 @@ export default function FeedbackForm({ activated, onDismissSurvey, onDisableSurv
       showEmailAddress: (policies?.data?.email !== 2),
       surveyEnabled: (profile?.profileType !== ACCOUNT_TYPE.AAD),
       onDismiss: (campaignId: string, submitted: boolean) => {
+        const SecondsBeforePopup = getSecondsBeforePopup(floodgateObject.floodgate.getEngine()
+          .previousSurveyEventActivityStats);
+        const telemetryData = { SecondsBeforePopup, IsSubmitted: false };
         if (submitted) {
           dispatch(setQueryResponseStatus({
             status: translateMessage('Submitted Successfully'),
@@ -110,7 +115,10 @@ export default function FeedbackForm({ activated, onDismissSurvey, onDisableSurv
             ok: true,
             messageType: MessageBarType.success
           }));
-
+          trackSurveyPopup({...telemetryData, IsSubmitted: true}, campaignId);
+        }
+        else{
+          trackSurveyPopup(telemetryData, campaignId);
         }
         onDismissSurvey();
       },
@@ -145,7 +153,6 @@ export default function FeedbackForm({ activated, onDismissSurvey, onDisableSurv
           floodgateObject.floodgate.start();
           floodgateObject.floodgate.getEngine().getActivityListener().logActivity('OnPageLoad');
           floodgateObject.floodgate.getEngine().getActivityListener().logActivityStartTime('AppUsageTime');
-
         }
       }
       window.onfocus = function () {
@@ -171,6 +178,20 @@ export default function FeedbackForm({ activated, onDismissSurvey, onDisableSurv
     }
   }
 
+  const trackSurveyPopup = (telemetryData: any, campaignId: string) => {
+    if(campaignId === process.env.REACT_APP_NPS_FEEDBACK_CAMPAIGN_ID){
+      telemetry.trackWindowOpenEvent(componentNames.LAUNCH_FEEDBACK_POPUP_ACTION, telemetryData);
+    }
+  }
+
+  const getSecondsBeforePopup = (previousSurveyEventActivityStats: any) : string => {
+    let latestCount : number = 0;
+    if (Object.keys(previousSurveyEventActivityStats.Surveys).length > 0) {
+      const surveyStats: any = Object.values(previousSurveyEventActivityStats.Surveys);
+      latestCount = surveyStats[0].Counts;
+    }
+    return latestCount.toString();
+  }
 
   function getCampaignId(): string {
     return process.env.REACT_APP_FEEDBACK_CAMPAIGN_ID || '';

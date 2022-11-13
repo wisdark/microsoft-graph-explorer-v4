@@ -1,4 +1,4 @@
-import { hasWhiteSpace, parseSampleUrl } from './sample-url-generation';
+import { parseSampleUrl } from './sample-url-generation';
 
 describe('Sample Url Generation', () => {
 
@@ -34,13 +34,15 @@ describe('Sample Url Generation', () => {
   it('destructures sample url with % sign', () => {
     const name = 'DiegoS%40m365x214355.onmicrosoft.com';
     const search = `?$select=displayName,mail&$filter=mail eq '${name}'`;
+    const parsedSearch = `?$select=displayName,mail&$filter=mail+eq+'${name}'`;
+
     const url = `https://graph.microsoft.com/v1.0/users${search}`;
 
     const expectedUrl = {
       requestUrl: 'users',
       queryVersion: 'v1.0',
-      sampleUrl: url,
-      search
+      sampleUrl: `https://graph.microsoft.com/v1.0/users${parsedSearch}`,
+      search: parsedSearch
     };
 
     const parsedUrl = parseSampleUrl(url);
@@ -75,27 +77,21 @@ describe('Sample Url Generation', () => {
     expect(parsedUrl).toEqual(expectedUrl);
   });
 
-});
+  it('replaces whitespace with + sign', () => {
+    const search = '?filter=displayName eq \'All Company\'';
+    const parsedSearch = '?filter=displayName+eq+\'All+Company\'';
 
+    const url = `https://graph.microsoft.com/v1.0/groups${search}`;
 
-describe('hasWhiteSpaces should', () => {
-  const invalidUrls = [
-    { url: ' https://graph.microsoft.com/v1.0/me', output: false },
-    { url: 'https: //graph.microsoft.com/v1.0/me', output: true },
-    { url: 'https://%20graph.microsoft.com/v1.0/me', output: true },
-    { url: 'https://graph.microsoft.com/ v1.0/me', output: true },
-    { url: 'https://graph.microsoft.com/v1.0/ me', output: true },
-    {
-      url:
-        'https://graph.microsoft.com/v1.0/me/contacts?$filter=emailAddresses/any(a:a/address eq \'garth@contoso.com\')',
-      output: false
-    },
-    { url: 'https://graph.microsoft.com/v1.0/me     ', output: false }
-  ];
-  invalidUrls.forEach(invalidUrl => {
-    it(`validate whitespaces in the url: ${invalidUrl.url}`, () => {
-      expect(hasWhiteSpace(invalidUrl.url)).toBe(invalidUrl.output);
-    });
+    const expectedUrl = {
+      requestUrl: 'groups',
+      queryVersion: 'v1.0',
+      sampleUrl: `https://graph.microsoft.com/v1.0/groups${parsedSearch}`,
+      search: parsedSearch
+    };
+
+    const parsedUrl = parseSampleUrl(url);
+    expect(parsedUrl).toEqual(expectedUrl);
   });
-});
 
+});

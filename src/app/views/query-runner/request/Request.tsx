@@ -1,20 +1,12 @@
-import {
-  getId,
-  Icon,
-  Pivot,
-  PivotItem,
-  TooltipHost
-} from '@fluentui/react';
+import { FontSizes, Pivot, PivotItem } from '@fluentui/react';
 import { Resizable } from 're-resizable';
-import React, { Component, CSSProperties } from 'react';
+import React, { CSSProperties, useState } from 'react';
 import { injectIntl } from 'react-intl';
-import { connect } from 'react-redux';
-import { bindActionCreators, Dispatch } from 'redux';
+import { useDispatch } from 'react-redux';
 
+import { AppDispatch, useAppSelector } from '../../../../store';
 import { telemetry } from '../../../../telemetry';
 import { Mode } from '../../../../types/enums';
-import { IRequestComponent } from '../../../../types/request';
-import { IRootState } from '../../../../types/root';
 import { setDimensions } from '../../../services/actions/dimensions-action-creator';
 import { translateMessage } from '../../../utils/translate-messages';
 import { convertPxToVh, convertVhToPx } from '../../common/dimensions/dimensions-adjustment';
@@ -24,25 +16,20 @@ import { RequestHeaders } from './headers';
 import { Permission } from './permissions';
 import './request.scss';
 
-export class Request extends Component<IRequestComponent, any> {
-  constructor(props: IRequestComponent) {
-    super(props);
-    this.state = {
-      enableShowSurvey: false,
-      selectedPivot: 'request-body'
-    }
-  }
+const Request = (props: any) => {
+  const dispatch: AppDispatch = useDispatch();
+  const [selectedPivot, setSelectedPivot] = useState('request-body');
+  const { graphExplorerMode: mode, dimensions } = useAppSelector((state) => state);
+  const pivot = selectedPivot.replace('.$', '');
+  const minHeight = 60;
+  const maxHeight = 800;
 
-  private toggleCustomSurvey = (show: boolean = false) => {
-    this.setState({ enableShowSurvey: show });
-  }
+  const {
+    handleOnEditorChange,
+    intl: { messages }
+  }: any = props;
 
-  private getPivotItems = (height: string) => {
-    const {
-      handleOnEditorChange,
-      mode,
-      intl: { messages }
-    }: any = this.props;
+  const getPivotItems = (height: string) => {
 
     const heightAdjustment = 55;
     const containerStyle: CSSProperties = {
@@ -57,9 +44,7 @@ export class Request extends Component<IRequestComponent, any> {
         key='request-body'
         itemIcon='Send'
         itemKey='request-body' // To be used to construct component name for telemetry data
-        onRenderItemLink={this.getTooltipDisplay}
         ariaLabel={messages['request body']}
-        title={messages['request body']}
         headerText={messages['request body']}
         headerButtonProps={{
           'aria-controls': 'request-body-tab'
@@ -73,9 +58,7 @@ export class Request extends Component<IRequestComponent, any> {
         key='request-headers'
         itemIcon='FileComment'
         itemKey='request-headers'
-        onRenderItemLink={this.getTooltipDisplay}
         ariaLabel={messages['request header']}
-        title={messages['request header']}
         headerText={messages['request header']}
         headerButtonProps={{
           'aria-controls': 'request-header-tab'
@@ -89,9 +72,7 @@ export class Request extends Component<IRequestComponent, any> {
         key='modify-permissions'
         itemIcon='AzureKeyVault'
         itemKey='modify-permissions'
-        onRenderItemLink={this.getTooltipDisplay}
         ariaLabel={translateMessage('modify permissions')}
-        title={translateMessage('permissions preview')}
         headerText={messages['modify permissions']}
         headerButtonProps={{
           'aria-controls': 'permission-tab'
@@ -108,9 +89,7 @@ export class Request extends Component<IRequestComponent, any> {
           key='access-token'
           itemIcon='AuthenticatorApp'
           itemKey='access-token'
-          onRenderItemLink={this.getTooltipDisplay}
           ariaLabel={translateMessage('Access Token')}
-          title={translateMessage('Access Token')}
           headerText={translateMessage('Access Token')}
           headerButtonProps={{
             'aria-controls': 'access-token-tab'
@@ -125,114 +104,74 @@ export class Request extends Component<IRequestComponent, any> {
     return pivotItems;
   }
 
-  private getTooltipDisplay(link: any) {
-    return (
-      <TooltipHost
-        content={link.title}
-        id={getId()}
-        calloutProps={{ gapSpace: 0 }}
-      >
-        <Icon iconName={link.itemIcon} style={{ paddingRight: 5 }} />
-        {link.headerText}
-      </TooltipHost>
-    );
-  }
+  const requestPivotItems = getPivotItems(dimensions.request.height);
 
-  private handlePivotItemClick = (pivotItem?: PivotItem) => {
+  const handlePivotItemClick = (pivotItem?: PivotItem) => {
     if (!pivotItem) {
       return;
     }
-    this.onPivotItemClick(pivotItem);
-    this.setState({ selectedPivot: pivotItem.props.itemKey });
+    onPivotItemClick(pivotItem);
+    setSelectedPivot(pivotItem.props.itemKey!);
   }
 
-  private onPivotItemClick = (item?: PivotItem) => {
+  const onPivotItemClick = (item?: PivotItem) => {
     if (!item) { return; }
     const tabKey = item.props.itemKey;
-    const { sampleQuery }: any = this.props;
+    const { sampleQuery }: any = props;
     if (tabKey) {
       telemetry.trackTabClickEvent(tabKey, sampleQuery);
     }
   };
 
-  private setRequestAndResponseHeights = (requestHeight: string) => {
+  const setRequestAndResponseHeights = (requestHeight: string) => {
     const heightInPx = requestHeight.replace('px', '').trim();
     const requestHeightInVh = convertPxToVh(parseFloat(heightInPx)).toString();
     const maxDeviceVerticalHeight = 90;
-    const dimen = { ...this.props.dimensions };
+    const dimen = { ...props.dimensions };
     dimen.request.height = requestHeightInVh;
     const response = maxDeviceVerticalHeight - parseFloat(requestHeightInVh.replace('vh', ''));
     dimen.response.height = response + 'vh';
-    this.props.actions!.setDimensions(dimen);
+    dispatch(setDimensions(dimen));
   };
 
-
-  public render() {
-    const { dimensions } = this.props;
-    const requestPivotItems = this.getPivotItems(dimensions.request.height);
-    const { selectedPivot } = this.state;
-    const pivot = selectedPivot.replace('.$', '');
-    const minHeight = 60;
-    const maxHeight = 800;
-    return (
-      <>
-        <Resizable
-          style={{
-            border: 'solid 1px #ddd',
-            marginBottom: 10
-          }}
-          onResizeStop={(e: any, direction: any, ref: any) => {
-            if (ref && ref.style && ref.style.height) {
-              this.setRequestAndResponseHeights(ref.style.height);
-            }
-          }}
-          maxHeight={maxHeight}
-          minHeight={minHeight}
-          bounds={'window'}
-          size={{
-            height: 'inherit',
-            width: '100%'
-          }}
-          enable={{
-            bottom: true
-          }}
-        >
-          <div className='query-request'>
-            <Pivot
-              overflowBehavior='menu'
-              onLinkClick={this.handlePivotItemClick}
-              className='pivot-request'
-              selectedKey={pivot}
-            >
-              {requestPivotItems}
-            </Pivot>
-          </div>
-        </Resizable>
-      </>
-    );
-  }
+  return (
+    <>
+      <Resizable
+        style={{
+          border: 'solid 1px #ddd'
+        }}
+        onResize={(e: any, direction: any, ref: any) => {
+          if (ref && ref.style && ref.style.height) {
+            setRequestAndResponseHeights(ref.style.height);
+          }
+        }}
+        maxHeight={maxHeight}
+        minHeight={minHeight}
+        bounds={'window'}
+        size={{
+          height: 'inherit',
+          width: '100%'
+        }}
+        enable={{
+          bottom: true
+        }}
+      >
+        <div className='query-request'>
+          <Pivot
+            overflowBehavior='menu'
+            overflowAriaLabel={translateMessage('More items')}
+            onLinkClick={handlePivotItemClick}
+            className='pivot-request'
+            selectedKey={pivot}
+            styles={{ text: { fontSize: FontSizes.size14 } }}
+          >
+            {requestPivotItems}
+          </Pivot>
+        </div>
+      </Resizable>
+    </>
+  );
 }
 
-function mapStateToProps(
-  { graphExplorerMode, sampleQuery, theme, sidebarProperties, dimensions, profile }: IRootState) {
-  return {
-    mode: graphExplorerMode,
-    sampleBody: sampleQuery.sampleBody,
-    theme,
-    mobileScreen: !!sidebarProperties.mobileScreen,
-    dimensions,
-    profile: profile?.profileType
-  };
-}
-
-function mapDispatchToProps(dispatch: Dispatch) {
-  return {
-    actions: bindActionCreators({
-      setDimensions
-    }, dispatch)
-  };
-}
-
-// @ts-ignore
 const IntlRequest = injectIntl(Request);
-export default connect(mapStateToProps, mapDispatchToProps)(IntlRequest);
+export default IntlRequest;

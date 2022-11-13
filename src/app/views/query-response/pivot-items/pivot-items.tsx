@@ -1,12 +1,11 @@
-import { getId, getTheme, Icon, ITheme, PivotItem, TooltipHost } from '@fluentui/react';
+import { getTheme, IPivotItemProps, ITheme, PivotItem } from '@fluentui/react';
 import React from 'react';
-import { useSelector } from 'react-redux';
+import { useAppSelector } from '../../../../store';
 
 import { componentNames, telemetry } from '../../../../telemetry';
 import { ThemeContext } from '../../../../themes/theme-context';
 import { Mode } from '../../../../types/enums';
 import { IQuery } from '../../../../types/query-runner';
-import { IRootState } from '../../../../types/root';
 import { lookupTemplate } from '../../../utils/adaptive-cards-lookup';
 import { validateExternalLink } from '../../../utils/external-link-validation';
 import { lookupToolkitUrl } from '../../../utils/graph-toolkit-lookup';
@@ -19,9 +18,10 @@ import { queryResponseStyles } from '../queryResponse.styles';
 import { Response } from '../response';
 import { Snippets } from '../snippets';
 
-export const getPivotItems = () => {
+export const GetPivotItems = () => {
 
-  const { graphExplorerMode: mode, sampleQuery, graphResponse: { body } } = useSelector((state: IRootState) => state);
+  const { graphExplorerMode: mode, sampleQuery,
+    graphResponse: { body } } = useAppSelector((state) => state);
 
   const currentTheme: ITheme = getTheme();
   const dotStyle = queryResponseStyles(currentTheme).dot;
@@ -46,16 +46,20 @@ export const getPivotItems = () => {
     }
     return null;
   }
+  function renderItemLink(
+    link?: IPivotItemProps,
+    defaultRenderer?: (link?: IPivotItemProps) => JSX.Element | null,
+  ): JSX.Element | null {
+    if (!link || !defaultRenderer) {
+      return null;
+    }
 
-  function renderItemLink(link: any) {
     return (
-      <TooltipHost content={link.title} id={getId()} calloutProps={{ gapSpace: 0 }}>
-        <Icon iconName={link.itemIcon} style={{ paddingRight: 5 }} />
-        {link.headerText}
-
+      <span>
+        {defaultRenderer({ ...link, itemKey: 'adaptive-cards' })}
         {link.itemKey === 'adaptive-cards' && showDotIfAdaptiveCardPresent()}
         {link.itemKey === 'toolkit-component' && showDotIfGraphToolkitPresent()}
-      </TooltipHost>
+      </span>
     );
   }
 
@@ -67,7 +71,6 @@ export const getPivotItems = () => {
       itemKey='response-preview' // To be used to construct component name for telemetry data
       headerText={translateMessage('Response Preview')}
       title={translateMessage('Response Preview')}
-      onRenderItemLink={renderItemLink}
       headerButtonProps={{
         'aria-controls': 'response-tab'
       }}
@@ -81,15 +84,13 @@ export const getPivotItems = () => {
       itemIcon='FileComment'
       itemKey='response-headers'
       title={translateMessage('Response Headers')}
-      onRenderItemLink={renderItemLink}
       headerButtonProps={{
         'aria-controls': 'response-headers-tab'
       }}
     >
-      <div id={'response-headers-tab'}><ResponseHeaders/></div>
+      <div id={'response-headers-tab'}><ResponseHeaders /></div>
     </PivotItem>
   ];
-
   if (mode === Mode.Complete) {
     pivotItems.push(
       <PivotItem
@@ -99,7 +100,6 @@ export const getPivotItems = () => {
         headerText={translateMessage('Snippets')}
         itemIcon='PasteAsCode'
         itemKey='code-snippets'
-        onRenderItemLink={renderItemLink}
         headerButtonProps={{
           'aria-controls': 'code-snippets-tab'
         }}

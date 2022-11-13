@@ -1,30 +1,25 @@
+import { MessageBarType, Spinner, SpinnerSize, styled } from '@fluentui/react';
 import { SeverityLevel } from '@microsoft/applicationinsights-web';
-import { Icon, Label, MessageBar, MessageBarType, Spinner, SpinnerSize, styled } from '@fluentui/react';
 import React, { useState } from 'react';
-import { FormattedMessage, injectIntl } from 'react-intl';
-import { useDispatch, useSelector } from 'react-redux';
+import { injectIntl } from 'react-intl';
+import { useDispatch } from 'react-redux';
+
 import { authenticationWrapper } from '../../../modules/authentication';
-import { componentNames, errorTypes, telemetry } from '../../../telemetry';
-import { Mode } from '../../../types/enums';
-import { IRootState } from '../../../types/root';
+import { getSignInAuthErrorHint, signInAuthError } from '../../../modules/authentication/authentication-error-hints';
+import { AppDispatch, useAppSelector } from '../../../store';
+import { componentNames, errorTypes, eventTypes, telemetry } from '../../../telemetry';
 import { getAuthTokenSuccess, getConsentedScopesSuccess } from '../../services/actions/auth-action-creators';
 import { setQueryResponseStatus } from '../../services/actions/query-status-action-creator';
 import { classNames } from '../classnames';
 import { showSignInButtonOrProfile } from './auth-util-components';
 import { authenticationStyles } from './Authentication.styles';
-import { getSignInAuthErrorHint, signInAuthError } from '../../../modules/authentication/authentication-error-hints';
 
 const Authentication = (props: any) => {
-  const dispatch = useDispatch();
+  const dispatch: AppDispatch = useDispatch();
   const [loginInProgress, setLoginInProgress] = useState(false);
-  const { sidebarProperties, authToken, graphExplorerMode } = useSelector(
-    (state: IRootState) => state
-  );
-  const mobileScreen = !!sidebarProperties.mobileScreen;
-  const showSidebar = !!sidebarProperties.showSidebar;
+  const { authToken } = useAppSelector((state) => state);
   const tokenPresent = !!authToken.token;
   const logoutInProgress = !!authToken.pending;
-  const minimised = !mobileScreen && !showSidebar;
 
   const classes = classNames(props);
 
@@ -33,6 +28,9 @@ const Authentication = (props: any) => {
   }: any = props;
   const signIn = async (): Promise<void> => {
     setLoginInProgress(true);
+    telemetry.trackEvent(eventTypes.BUTTON_CLICK_EVENT, {
+      ComponentName: componentNames.SIGN_IN_BUTTON
+    });
 
     try {
       const authResponse = await authenticationWrapper.logIn();
@@ -67,44 +65,33 @@ const Authentication = (props: any) => {
     }
   };
 
+  const signInWithOther = async (): Promise<void> => {
+    setLoginInProgress(true);
+    telemetry.trackEvent(eventTypes.BUTTON_CLICK_EVENT, {
+      ComponentName: componentNames.SIGN_IN_WITH_OTHER_ACCOUNT_BUTTON
+    });
+    try{
+      const authResponse = await authenticationWrapper.logInWithOther();
+      if (authResponse) {
+        setLoginInProgress(false);
+        dispatch(getAuthTokenSuccess(!!authResponse.accessToken));
+        dispatch(getConsentedScopesSuccess(authResponse.scopes));
+      }
+    } catch(error: any) {
+      setLoginInProgress(false);
+    }
+  }
+
+
   const removeUnderScore = (statusString: string): string => {
-    if (statusString === '') {
-      return statusString;
-    }
-    else {
-      return statusString.replace(/_/g, ' ');
-    }
+    return statusString ? statusString.replace(/_/g, ' ') : statusString;
   }
 
   const showProgressSpinner = (): React.ReactNode => {
     return (
       <div className={classes.spinnerContainer}>
         <Spinner className={classes.spinner} size={SpinnerSize.medium} />
-        {!minimised && (
-          <Label>
-            <FormattedMessage
-              id={`Signing you ${loginInProgress ? 'in' : 'out'}...`}
-            />
-          </Label>
-        )}
       </div>
-    );
-  };
-
-  const showUnAuthenticatedText = (): React.ReactNode => {
-    return (
-      <>
-        <Label className={classes.authenticationLabel}>
-          <Icon iconName='Permissions' className={classes.keyIcon} />
-          <FormattedMessage id='Authentication' />
-        </Label>
-
-        <br />
-        <MessageBar messageBarType={MessageBarType.warning} isMultiline={true}>
-          <FormattedMessage id='Using demo tenant' />{' '}
-          <FormattedMessage id='To access your own data:' />
-        </MessageBar>
-      </>
     );
   };
 
@@ -116,22 +103,13 @@ const Authentication = (props: any) => {
     <>
       {loginInProgress ? (
         showProgressSpinner()
-      ) : mobileScreen ? (
-        showSignInButtonOrProfile(tokenPresent, mobileScreen, signIn, minimised)
       ) : (
         <>
-          {!tokenPresent &&
-            graphExplorerMode === Mode.Complete &&
-            !minimised &&
-            showUnAuthenticatedText()}
-          <br />
           {showSignInButtonOrProfile(
             tokenPresent,
-            mobileScreen,
             signIn,
-            minimised
+            signInWithOther
           )}
-          <br />
         </>
       )}
     </>

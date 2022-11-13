@@ -1,18 +1,20 @@
+import { InteractionType } from '@azure/msal-browser';
 import {
   AuthenticationHandlerOptions,
   GraphRequest,
   ResponseType
 } from '@microsoft/microsoft-graph-client';
 import {
-  MSALAuthenticationProviderOptions
-} from '@microsoft/microsoft-graph-client/lib/src/MSALAuthenticationProviderOptions';
+  AuthCodeMSALBrowserAuthenticationProviderOptions
+} from '@microsoft/microsoft-graph-client/authProviders/authCodeMsalBrowser';
 
-import { IAction } from '../../../types/action';
+import { authenticationWrapper } from '../../../modules/authentication';
+import { AppAction } from '../../../types/action';
 import { ContentType } from '../../../types/enums';
 import { IQuery } from '../../../types/query-runner';
 import { IRequestOptions } from '../../../types/request';
 import { IStatus } from '../../../types/status';
-import { ClientError } from '../../utils/ClientError';
+import { ClientError } from '../../utils/error-utils/ClientError';
 import { encodeHashCharacters } from '../../utils/query-url-sanitization';
 import { translateMessage } from '../../utils/translate-messages';
 import { authProvider, GraphClient } from '../graph-client';
@@ -20,7 +22,7 @@ import { DEFAULT_USER_SCOPES } from '../graph-constants';
 import { QUERY_GRAPH_SUCCESS } from '../redux-constants';
 import { queryRunningStatus } from './query-loading-action-creators';
 
-export function queryResponse(response: object): IAction {
+export function queryResponse(response: object): AppAction {
   return {
     type: QUERY_GRAPH_SUCCESS,
     response
@@ -94,22 +96,25 @@ function createAuthenticatedRequest(
       sampleHeaders[header.name] = header.value;
     });
   }
+  const updatedHeaders = { ...sampleHeaders, 'cache-control': 'no-cache', pragma: 'no-cache' }
 
-  const msalAuthOptions = new MSALAuthenticationProviderOptions(scopes);
+  const msalAuthOptions: AuthCodeMSALBrowserAuthenticationProviderOptions = {
+    account: authenticationWrapper.getAccount()!,
+    interactionType: InteractionType.Popup,
+    scopes
+  }
   const middlewareOptions = new AuthenticationHandlerOptions(
     authProvider,
     msalAuthOptions
-  );
-  const graphRequest = GraphClient.getInstance()
+  )
+  return GraphClient.getInstance()
     .api(encodeHashCharacters(query))
     .middlewareOptions([middlewareOptions])
-    .headers(sampleHeaders)
+    .headers(updatedHeaders)
     .responseType(ResponseType.RAW);
-
-  return graphRequest;
 }
 
-export function makeGraphRequest(scopes: string[]): Function {
+export function makeGraphRequest(scopes: string[]) {
   return async (query: IQuery) => {
     let response;
 
@@ -206,8 +211,7 @@ export async function generateResponseDownloadUrl(
     if (fileContents) {
       const buffer = await response.arrayBuffer();
       const blob = new Blob([buffer], { type: contentType });
-      const downloadUrl = URL.createObjectURL(blob);
-      return downloadUrl;
+      return URL.createObjectURL(blob);
     }
   } catch (error) {
     return null;
@@ -227,7 +231,6 @@ export function parseResponse(
     switch (contentType) {
       case ContentType.Json:
         return response.json();
-
       case ContentType.XML:
       case ContentType.HTML:
       case ContentType.TextPlain:
@@ -238,4 +241,28 @@ export function parseResponse(
     }
   }
   return response;
+}
+
+/**
+ * Check if query attempts to download from OneDrive's /content API or reporting API
+ * Examples:
+ *  /drive/items/{item-id}/content
+ *  /shares/{shareIdOrEncodedSharingUrl}/driveItem/content
+ *  /me/drive/items/{item-id}/thumbnails/{thumb-id}/{size}/content
+ *  /sites/{site-id}/drive/items/{item-id}/versions/{version-id}/content
+ *  /reports/getOffice365ActivationCounts?$format=text/csv
+ *  /reports/getEmailActivityUserCounts(period='D7')?$format=text/csv
+ * @param query
+ * @returns true if query calls the OneDrive or reporting API, otherwise false
+ */
+export function queryResultsInCorsError(sampleUrl: string): boolean {
+  sampleUrl = sampleUrl.toLowerCase();
+  if (
+    (['/drive/', '/drives/', '/driveItem/'].some((x) =>
+      sampleUrl.includes(x)) && sampleUrl.endsWith('/content')) ||
+    sampleUrl.includes('/reports/')
+  ) {
+    return true;
+  }
+  return false;
 }

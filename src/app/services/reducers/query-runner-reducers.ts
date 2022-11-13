@@ -1,7 +1,8 @@
-import { IAction } from '../../../types/action';
+import { AppAction } from '../../../types/action';
 import { IGraphResponse } from '../../../types/query-response';
 import {
   CLEAR_RESPONSE,
+  LOGOUT_SUCCESS,
   QUERY_GRAPH_RUNNING,
   QUERY_GRAPH_SUCCESS,
   VIEW_HISTORY_ITEM_SUCCESS
@@ -14,7 +15,7 @@ const initialState: IGraphResponse = {
 
 export function graphResponse(
   state: IGraphResponse = initialState,
-  action: IAction
+  action: AppAction
 ): any {
   switch (action.type) {
     case QUERY_GRAPH_SUCCESS:
@@ -24,6 +25,8 @@ export function graphResponse(
     case QUERY_GRAPH_RUNNING:
       return initialState;
     case CLEAR_RESPONSE:
+      return initialState;
+    case LOGOUT_SUCCESS:
       return initialState;
     default:
       return state;

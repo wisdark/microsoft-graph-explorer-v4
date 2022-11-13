@@ -6,6 +6,7 @@ import {
   IResourceLink,
   ResourceLinkType
 } from '../../../../types/resources';
+import { versionExists } from '../../../utils/resources/resources-filter';
 
 interface ITreeFilter {
   paths: string[];
@@ -16,7 +17,8 @@ interface ITreeFilter {
 
 export function createResourcesList(
   source: IResource[],
-  version: string
+  version: string,
+  searchText?: string
 ): INavLinkGroup[] {
   function getLinkType({ segment, links }: any): ResourceLinkType {
     const isGraphFunction = segment.startsWith('microsoft.graph');
@@ -34,21 +36,27 @@ export function createResourcesList(
   ): IResourceLink[] {
     const { segment, children } = parent;
     const links: IResourceLink[] = [];
+    const childPaths = [...paths, segment];
     if (methods.length > 1) {
-      methods.forEach((method) => {
-        links.push(
-          createNavLink(
-            {
+      if (
+        !searchText ||
+        (searchText && childPaths.some((path) => path.contains(searchText)))
+      ) {
+        methods.forEach((method) => {
+          links.push(
+            createNavLink(
+              {
+                segment,
+                labels: [],
+                children: []
+              },
               segment,
-              labels: [],
-              children: []
-            },
-            segment,
-            [...paths, segment],
-            method.toUpperCase()
-          )
-        );
-      });
+              childPaths,
+              method.toUpperCase()
+            )
+          );
+        });
+      }
     }
 
     // versioned children
@@ -56,19 +64,17 @@ export function createResourcesList(
       children
         .filter((child) => versionExists(child, version))
         .forEach((versionedChild) => {
-          links.push(
-            createNavLink(versionedChild, segment, [...paths, segment])
-          );
+          links.push(createNavLink(versionedChild, segment, childPaths));
         });
 
     return links;
   }
 
   function sortResourceLinks(a: IResourceLink, b: IResourceLink): number {
-    if (a.links.length === 0 && a.links.length < b.links.length) {
+    if (a.links.length === 0 && b.links.length > 0) {
       return -1;
     }
-    if (b.links.length === 0 && a.links.length > b.links.length) {
+    if (b.links.length === 0 && a.links.length > 0) {
       return 1;
     }
     return 0;
@@ -103,12 +109,19 @@ export function createResourcesList(
         ? ` (${versionedChildren.length})`
         : '';
 
+    // if segment name does not contain search text, then found text is in child, so expand this link
+    const isExpanded =
+      searchText &&
+        ![...paths, segment].some((path) => path.contains(searchText))
+        ? true
+        : false;
+
     return {
       key,
       url: key,
       name: `${segment}${enclosedCounter}`,
       labels,
-      isExpanded: false,
+      isExpanded,
       parent,
       level,
       paths,
@@ -159,26 +172,6 @@ export function removeCounter(title: string): string {
   return title.split(' (')[0].trim();
 }
 
-export function getResourcesSupportedByVersion(
-  content: IResource,
-  version: string
-): IResource {
-  const resources: IResource = { ...content };
-  const children: IResource[] = [];
-
-  resources.children.forEach((child: IResource) => {
-    if (versionExists(child, version)) {
-      children.push(child);
-    }
-  });
-  resources.children = children;
-  return resources;
-}
-
-export function versionExists(child: IResource, version: string): boolean {
-  return !!child.labels.find((k) => k.name === version);
-}
-
 export function getAvailableMethods(
   labels: IResourceLabel[],
   version: string
@@ -214,6 +207,7 @@ export function getResourcePaths(
     content.forEach((element: IResourceLink) => {
       element.version = version;
       element.url = `${getUrlFromLink(element)}`;
+      element.key = element.key?.includes(version) ? element.key : `${element.key}-${element.version}`
     });
   }
   return content;
@@ -229,3 +223,5 @@ function flatten(content: IResourceLink[]): IResourceLink[] {
   });
   return result;
 }
+
+

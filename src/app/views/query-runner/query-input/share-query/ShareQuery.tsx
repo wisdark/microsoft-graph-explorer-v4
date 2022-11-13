@@ -1,10 +1,11 @@
-import { DefaultButton, Dialog, DialogFooter, DialogType, DirectionalHint, FontSizes,
-  IconButton, IIconProps, TooltipHost } from '@fluentui/react';
-import React, { useEffect, useState } from 'react';
-import { useSelector } from 'react-redux';
+import {
+  DefaultButton, Dialog, DialogFooter, DialogType, DirectionalHint, FontSizes,
+  IconButton, IIconProps, TooltipHost
+} from '@fluentui/react';
+import React, { useState } from 'react';
+import { useAppSelector } from '../../../../../store';
 
 import { componentNames, eventTypes, telemetry } from '../../../../../telemetry';
-import { IRootState } from '../../../../../types/root';
 import { sanitizeQueryUrl } from '../../../../utils/query-url-sanitization';
 import { translateMessage } from '../../../../utils/translate-messages';
 import { copy } from '../../../common/copy';
@@ -14,13 +15,12 @@ import { shareQueryStyles } from './ShareQuery.styles';
 
 
 export const ShareQuery = () => {
-  const { sampleQuery } = useSelector((state: IRootState) => state);
+  const { sampleQuery } = useAppSelector((state) => state);
   const [showShareQueryDialog, setShareQuaryDialogStatus] = useState(true);
-  const [shareLink, setShareLink] = useState(() => createShareLink(sampleQuery));
 
-  useEffect(() => {
-    setShareLink(createShareLink(sampleQuery));
-  }, [sampleQuery]);
+  const query = { ...sampleQuery };
+  const sanitizedQueryUrl = sanitizeQueryUrl(query.sampleUrl);
+  const shareLink = createShareLink(sampleQuery);
 
   const toggleShareQueryDialogState = () => {
     setShareQuaryDialogStatus(prevState => !prevState);
@@ -32,21 +32,20 @@ export const ShareQuery = () => {
   }
 
   const trackCopyEvent = () => {
-    const sanitizedUrl = sanitizeQueryUrl(sampleQuery.sampleUrl);
     telemetry.trackEvent(eventTypes.BUTTON_CLICK_EVENT,
       {
         ComponentName: componentNames.SHARE_QUERY_COPY_BUTTON,
-        QuerySignature: `${sampleQuery.selectedVerb} ${sanitizedUrl}`
+        QuerySignature: `${query.selectedVerb} ${sanitizedQueryUrl}`
       });
   }
 
-  const iconProps : IIconProps = {
+  const iconProps: IIconProps = {
     iconName: 'Share'
   }
 
   const shareButtonStyles = shareQueryStyles().iconButton;
 
-  const content = <div style={{padding:'3px'}}>{translateMessage('Share Query')}</div>
+  const content = <div style={{ padding: '3px' }}>{translateMessage('Share Query')}</div>
   const calloutProps = {
     gapSpace: 0
   };
@@ -63,6 +62,7 @@ export const ShareQuery = () => {
           iconProps={iconProps}
           styles={shareButtonStyles}
           role={'button'}
+          ariaLabel={translateMessage('Share Query')}
         />
       </TooltipHost>
       <Dialog

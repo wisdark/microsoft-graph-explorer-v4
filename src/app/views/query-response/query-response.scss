@@ -1,7 +1,6 @@
 @import "../../../styles/variables";
 
 .query-response {
-  width:100%;
   margin-top: $gutter;
   border: 1px solid silver;
   overflow: hidden;
@@ -13,16 +12,15 @@
   }
 
 
-   @media screen and (min-width: 1320px){
-     .pivot-response *[data-content='Expand xx'] {
-       float: right !important;
-      }
-  }
-
-
-  @media screen and (min-width: 1320px){
-    .pivot-response *[data-content='Share xx'] {
-      float: right !important;
+  @media screen and (min-width: 1320px) {
+    .pivot-response button:nth-last-child(2) {
+      float: right;
+    }
+    .unstyled-pivot button:nth-last-child(2) {
+      float: none;
+    }
+    .adaptive-pivot button:nth-last-child(2) {
+      float: none;
     }
   }
 
@@ -34,13 +32,6 @@
     justify-content: center;
     align-items: center;
   }
-
-  .share-query-btn {
-    float: right;
-    margin-top: 10px;
-    padding: 0px;
-    z-index: 1;
-  }
 }
 
 .share-query-params {
@@ -50,4 +41,3 @@
   overflow-x: auto;
   overflow-y: hidden;
 }
-
