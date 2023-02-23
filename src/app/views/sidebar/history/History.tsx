@@ -2,16 +2,17 @@ import {
   Announced,
   ContextualMenuItemType, DefaultButton, DetailsList, DetailsRow, Dialog,
   DialogFooter, DialogType, getId, getTheme, IColumn, IconButton,
+  IGroup,
   Label, MessageBar, MessageBarType, PrimaryButton, SearchBox, SelectionMode, styled, TooltipHost
 } from '@fluentui/react';
-import React, { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { FormattedMessage, injectIntl } from 'react-intl';
 import { useDispatch } from 'react-redux';
 
 import { AppDispatch, useAppSelector } from '../../../../store';
 import { componentNames, eventTypes, telemetry } from '../../../../telemetry';
 import { SortOrder } from '../../../../types/enums';
-import { IHarPayload } from '../../../../types/har';
+import { Entry } from '../../../../types/har';
 import { IHistoryItem } from '../../../../types/history';
 import { IQuery } from '../../../../types/query-runner';
 import { runQuery } from '../../../services/actions/query-action-creators';
@@ -30,7 +31,7 @@ import { translateMessage } from '../../../utils/translate-messages';
 import { classNames } from '../../classnames';
 import { NoResultsFound } from '../sidebar-utils/SearchResult';
 import { sidebarStyles } from '../Sidebar.styles';
-import { createHarPayload, exportQuery, generateHar } from './har-utils';
+import { createHarEntry, exportQuery, generateHar } from './har-utils';
 
 const columns = [
   { key: 'button', name: '', fieldName: '', minWidth: 20, maxWidth: 20 },
@@ -91,14 +92,35 @@ const History = (props: any) => {
   const [historyItems, setHistoryItems] = useState<IHistoryItem[]>(history);
   const [hideDialog, setHideDialog] = useState(true);
   const [category, setCategory] = useState('');
+  const [groups, setGroups] = useState<IGroup[]>([]);
+  const [searchStarted, setSearchStarted] = useState(false);
+
+  const shouldGenerateGroups = useRef(true);
+
+  const items = getItems(historyItems);
+
+  useEffect(() => {
+    if (shouldGenerateGroups.current) {
+      setGroups(generateGroupsFromList(items, 'category'));
+      if (groups && groups.length > 0) {
+        shouldGenerateGroups.current = false;
+      }
+    }
+  }, [historyItems, searchStarted])
 
   const classes = classNames(props);
+
+  useEffect(() => {
+    setHistoryItems(history);
+  }, [history])
 
   if (!history || history.length === 0) {
     return NoResultsFound('We did not find any history items');
   }
 
   const searchValueChanged = (_event: any, value?: string): void => {
+    shouldGenerateGroups.current = true;
+    setSearchStarted(searchStatus => !searchStatus);
     let content = [...history];
     if (value) {
       const keyword = value.toLowerCase();
@@ -332,11 +354,11 @@ const History = (props: any) => {
   };
 
   const exportHistoryByCategory = (value: string) => {
-    const itemsToExport = historyItems.filter((query) => query.category === value);
-    const entries: IHarPayload[] = [];
+    const itemsToExport = historyItems.filter((query: IHistoryItem) => query.category === value);
+    const entries: Entry[] = [];
 
     itemsToExport.forEach((query: IHistoryItem) => {
-      const harPayload = createHarPayload(query);
+      const harPayload = createHarEntry(query);
       entries.push(harPayload);
     });
 
@@ -375,7 +397,7 @@ const History = (props: any) => {
   };
 
   const onExportQuery = (query: IHistoryItem) => {
-    const harPayload = createHarPayload(query);
+    const harPayload = createHarEntry(query);
     const generatedHarData = generateHar([harPayload]);
     exportQuery(generatedHarData, `${query.url}/`);
     trackHistoryItemEvent(
@@ -449,8 +471,6 @@ const History = (props: any) => {
       });
   }
 
-  const items = getItems(historyItems);
-  const groups = generateGroupsFromList(items, 'category');
 
   return (
     <>

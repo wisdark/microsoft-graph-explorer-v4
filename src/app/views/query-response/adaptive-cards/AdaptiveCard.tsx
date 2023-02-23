@@ -3,7 +3,7 @@ import {
   MessageBar, MessageBarType, Pivot, PivotItem, styled
 } from '@fluentui/react';
 import * as AdaptiveCardsAPI from 'adaptivecards';
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { FormattedMessage, injectIntl } from 'react-intl';
 import { useDispatch } from 'react-redux';
 
@@ -16,6 +16,7 @@ import { classNames } from '../../classnames';
 import { Monaco } from '../../common';
 import { trackedGenericCopy } from '../../common/copy';
 import { CopyButton } from '../../common/copy/CopyButton';
+import { convertVhToPx, getResponseHeight } from '../../common/dimensions/dimensions-adjustment';
 import { queryResponseStyles } from './../queryResponse.styles';
 
 const AdaptiveCard = (props: any) => {
@@ -23,12 +24,16 @@ const AdaptiveCard = (props: any) => {
   const dispatch: AppDispatch = useDispatch();
 
   const { body, hostConfig } = props;
-  const { sampleQuery, queryRunnerStatus: queryStatus, adaptiveCard: card } = useAppSelector((state) => state);
+  const {dimensions: { response }, responseAreaExpanded,
+    sampleQuery, queryRunnerStatus: queryStatus, adaptiveCard: card, theme } = useAppSelector((state) => state);
   const { data, pending } = card;
 
   const classes = classNames(props);
   const currentTheme: ITheme = getTheme();
   const textStyle = queryResponseStyles(currentTheme).queryResponseText.root as IStyle;
+
+  const responseHeight = getResponseHeight(response.height, responseAreaExpanded);
+  const height = convertVhToPx(responseHeight, 220);
 
   useEffect(() => {
     dispatch(getAdaptiveCard(body, sampleQuery));
@@ -70,6 +75,7 @@ const AdaptiveCard = (props: any) => {
     );
   }
 
+
   if (body && !pending) {
     if (!data || (queryStatus && !queryStatus.ok)) {
       return (
@@ -81,6 +87,7 @@ const AdaptiveCard = (props: any) => {
             tabIndex={0}
             target='_blank'
             rel='noopener noreferrer'
+            underline
           >
             <FormattedMessage id='Adaptive Cards designer' />
           </Link>
@@ -91,6 +98,28 @@ const AdaptiveCard = (props: any) => {
     try {
       adaptiveCard.parse(data.card);
       const renderedCard = adaptiveCard.render();
+
+      if(renderedCard){
+        renderedCard.style.backgroundColor = currentTheme.palette.neutralLighter;
+
+        const applyTheme = (child: HTMLElement) => {
+          if(!child){ return; }
+          if(child && child.tagName === 'BUTTON'){ return; }
+
+          child.style.color = currentTheme.palette.black;
+          if (child.children.length > 0) {
+            // eslint-disable-next-line @typescript-eslint/prefer-for-of
+            for (let i = 0; i < child.children.length; i++) {
+              applyTheme(child.children[i] as HTMLElement);
+            }
+          }
+        }
+
+        if(theme !== 'light'){
+          applyTheme(renderedCard);
+        }
+      }
+
       const handleCopy = async () => {
         trackedGenericCopy(JSON.stringify(data.template, null, 4),
           componentNames.JSON_SCHEMA_COPY_BUTTON, sampleQuery);
@@ -128,13 +157,14 @@ const AdaptiveCard = (props: any) => {
               'aria-controls': 'json-schema-tab'
             }}
           >
-            <div id={'json-schema-tab'}>
+            <div id={'JSON-schema-tab'} tabIndex={0}>
               <MessageBar messageBarType={MessageBarType.info}>
                 <FormattedMessage id='Get started with adaptive cards on' />
                 <Link href={'https://learn.microsoft.com/en-us/adaptive-cards/templating/sdk'}
                   target='_blank'
                   rel='noopener noreferrer'
                   tabIndex={0}
+                  underline
                 >
                   <FormattedMessage id='Adaptive Cards Templating SDK' />
                 </Link>
@@ -143,6 +173,7 @@ const AdaptiveCard = (props: any) => {
                   target='_blank'
                   rel='noopener noreferrer'
                   tabIndex={0}
+                  underline
                 >
                   <FormattedMessage id='Adaptive Cards designer' />
                 </Link>
@@ -156,7 +187,7 @@ const AdaptiveCard = (props: any) => {
               <Monaco
                 language='json'
                 body={data.template}
-                height={'800px'}
+                height={height}
               />
             </div>
           </PivotItem>

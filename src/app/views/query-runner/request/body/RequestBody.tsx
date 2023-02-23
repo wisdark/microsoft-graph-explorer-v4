@@ -1,5 +1,4 @@
 import { FocusZone } from '@fluentui/react';
-import React from 'react';
 import { useAppSelector } from '../../../../../store';
 
 import { Monaco } from '../../../common';
@@ -9,7 +8,7 @@ const RequestBody = ({ handleOnEditorChange }: any) => {
   const { dimensions: { request: { height } }, sampleQuery } = useAppSelector((state) => state);
 
   return (
-    <FocusZone>
+    <FocusZone id='request-body-tab'>
       <Monaco
         body={sampleQuery.sampleBody}
         height={convertVhToPx(height, 60)}

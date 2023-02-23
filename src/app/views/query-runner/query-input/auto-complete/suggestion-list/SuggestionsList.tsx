@@ -1,17 +1,17 @@
 import { Label, styled } from '@fluentui/react';
-import React, { useEffect } from 'react';
+import { createRef, useEffect } from 'react';
 
 import { ISuggestionsList } from '../../../../../../types/auto-complete';
 import { classNames } from '../../../../classnames';
 import { autoCompleteStyles } from '../AutoComplete.styles';
 
-const styledSuggesions = (props: any) => {
+const StyledSuggesions = (props: any) => {
   const { filteredSuggestions, activeSuggestion, onClick }: ISuggestionsList = props;
   const classes = classNames(props);
 
   const refs = filteredSuggestions.reduce((ref: any, value: any) => {
     const itemIndex = filteredSuggestions.findIndex(k => k === value);
-    ref[itemIndex] = React.createRef();
+    ref[itemIndex] = createRef();
     return ref;
   }, {});
 
@@ -27,7 +27,7 @@ const styledSuggesions = (props: any) => {
 
   return (
     <ul className={classes.suggestions} tabIndex={-1}>
-      {filteredSuggestions.map((suggestion: {} | null | undefined, index: number) => {
+      {filteredSuggestions.map((suggestion: string, index: number) => {
         return (
           <li
             className={(index === activeSuggestion) ? classes.suggestionActive : classes.suggestionOption}
@@ -46,5 +46,5 @@ const styledSuggesions = (props: any) => {
 };
 
 // @ts-ignore
-const SuggestionsList = styled(styledSuggesions, autoCompleteStyles);
+const SuggestionsList = styled(StyledSuggesions, autoCompleteStyles);
 export default SuggestionsList;

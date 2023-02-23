@@ -1,6 +1,6 @@
 import { Announced, getTheme, ITheme, styled } from '@fluentui/react';
 import { Resizable } from 're-resizable';
-import React, { Component } from 'react';
+import { Component } from 'react';
 import { injectIntl } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators, Dispatch } from 'redux';
@@ -34,6 +34,8 @@ import { QueryRunner } from './query-runner';
 import { parse } from './query-runner/util/iframe-message-parser';
 import { Sidebar } from './sidebar/Sidebar';
 import { MainHeader } from './main-header/MainHeader';
+import { removeSpinners } from '../..';
+import { KeyboardCopyEvent } from './common/copy/KeyboardCopyEvent';
 
 export interface IAppProps {
   theme?: ITheme;
@@ -85,6 +87,8 @@ class App extends Component<IAppProps, IAppState> {
   }
 
   public componentDidMount = async () => {
+    removeSpinners();
+    KeyboardCopyEvent();
     this.displayToggleButton(this.mediaQueryList);
     this.mediaQueryList.addListener(this.displayToggleButton);
 

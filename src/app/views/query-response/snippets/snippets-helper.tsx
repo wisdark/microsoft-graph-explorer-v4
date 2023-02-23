@@ -1,5 +1,5 @@
 import { getTheme, ITheme, Label, Link, PivotItem } from '@fluentui/react';
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { useDispatch } from 'react-redux';
 
 import { FormattedMessage } from 'react-intl';
@@ -36,6 +36,8 @@ export function renderSnippets(supportedLanguages: ISupportedLanguages) {
         'aria-controls': `${language}-tab`
       }}
       itemKey={language}
+      tabIndex={0}
+      id={`${language}-tab`}
     >
       <Snippet language={language} snippetInfo={supportedLanguages} />
     </PivotItem>
@@ -60,7 +62,7 @@ function Snippet(props: ISnippetProps) {
   const snippet = (!loadingState && data) ? data[language] : null;
 
   const responseHeight = getResponseHeight(response.height, responseAreaExpanded);
-  const height = convertVhToPx(responseHeight, 140);
+  const height = convertVhToPx(responseHeight, 240);
 
   const dispatch: AppDispatch = useDispatch();
 
@@ -99,7 +101,7 @@ function Snippet(props: ISnippetProps) {
 
         {setCommentSymbol()} {translateMessage('Leverage libraries')} {language} {translateMessage('Client library')}
 
-        <Link  href={sdkDownloadLink} underline={true} styles={snippetLinkStyles}
+        <Link href={sdkDownloadLink} underline styles={snippetLinkStyles}
           onClick={(e) => trackLinkClickedEvent(sdkDownloadLink, e)} target={'_blank'} rel='noreferrer noopener'>
           {sdkDownloadLink}
         </Link>
@@ -107,7 +109,7 @@ function Snippet(props: ISnippetProps) {
 
         {setCommentSymbol()} {translateMessage('SDKs documentation')}
 
-        <Link href={sdkDocLink} underline={true} styles={snippetLinkStyles}
+        <Link href={sdkDocLink} underline styles={snippetLinkStyles}
           onClick={(e) => trackLinkClickedEvent(sdkDocLink, e)} target={'_blank'} rel='noreferrer noopener'>
           {sdkDocLink}
         </Link>

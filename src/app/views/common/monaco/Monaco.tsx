@@ -1,6 +1,6 @@
 import { FocusZone } from '@fluentui/react';
 import Editor, { OnChange, useMonaco } from '@monaco-editor/react';
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 
 import { ThemeContext } from '../../../../themes/theme-context';
 import './monaco.scss';
@@ -8,7 +8,7 @@ import { formatJsonStringForAllBrowsers } from './util/format-json';
 
 interface IMonaco {
   body: object | string | undefined;
-  onChange?: OnChange | undefined;
+  onChange?: OnChange;
   verb?: string;
   language?: string;
   readOnly?: boolean;
