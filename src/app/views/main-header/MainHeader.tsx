@@ -2,21 +2,19 @@ import {
   FontIcon, getId, getTheme, IconButton, IStackTokens, Label,
   registerIcons, Stack, TooltipHost
 } from '@fluentui/react';
-import { FormattedMessage } from 'react-intl';
 
-import { Settings } from './settings/Settings';
-import { FeedbackButton } from './FeedbackButton';
+import { useAppSelector } from '../../../store';
+import { Mode } from '../../../types/enums';
+import { translateMessage } from '../../utils/translate-messages';
 import { Authentication } from '../authentication';
+import { FeedbackButton } from './FeedbackButton';
 import { Help } from './Help';
 import { mainHeaderStyles } from './MainHeader.styles';
+import { Settings } from './settings/Settings';
 import TenantIcon from './tenantIcon';
-import { Mode } from '../../../types/enums';
-import { useAppSelector } from '../../../store';
 
 interface MainHeaderProps {
-  minimised: boolean;
   toggleSidebar: Function;
-  mobileScreen: boolean;
 }
 const sectionStackTokens: IStackTokens = {
   childrenGap: 0
@@ -31,11 +29,14 @@ registerIcons({
   }
 });
 export const MainHeader: React.FunctionComponent<MainHeaderProps> = (props: MainHeaderProps) => {
-  const { profile, graphExplorerMode } = useAppSelector(
+  const { profile, graphExplorerMode, sidebarProperties } = useAppSelector(
     (state) => state
   );
-  const minimised = props.minimised;
-  const mobileScreen = props.mobileScreen;
+
+  const mobileScreen = !!sidebarProperties.mobileScreen;
+  const showSidebar = !!sidebarProperties.showSidebar;
+  const minimised = !mobileScreen && !showSidebar;
+
   const currentTheme = getTheme();
   const { rootStyles: itemAlignmentStackStyles, rightItemsStyles, graphExplorerLabelStyles,
     feedbackIconAdjustmentStyles, tenantIconStyles, moreInformationStyles,
@@ -59,7 +60,7 @@ export const MainHeader: React.FunctionComponent<MainHeaderProps> = (props: Main
               tooltipProps={{
                 onRenderContent: function renderContent() {
                   return <div>
-                    <FormattedMessage id={!minimised ? 'Minimize sidebar' : 'Maximize sidebar'} /></div>
+                    {translateMessage(!minimised ? 'Minimize sidebar' : 'Maximize sidebar')}</div>
                 }
               }}>
               <IconButton
@@ -90,8 +91,8 @@ export const MainHeader: React.FunctionComponent<MainHeaderProps> = (props: Main
               <TooltipHost
                 content={
                   <>
-                    <FormattedMessage id='Using demo tenant' />{' '}
-                    <FormattedMessage id='To access your own data:' />
+                    {translateMessage('Using demo tenant')}{' '}
+                    {translateMessage('To access your own data:')}
                   </>}
                 id={getId()}
                 calloutProps={{ gapSpace: 0 }}

@@ -5,12 +5,11 @@ import { IDevxAPI } from './devx-api';
 import { IDimensions } from './dimensions';
 import { Mode } from './enums';
 import { IHistoryItem } from './history';
-import { IPolicies } from './ocps-api';
 import { IScopes } from './permissions';
 import { IUser } from './profile';
 import { IGraphResponse } from './query-response';
 import { IQuery, ISampleQuery } from './query-runner';
-import { IResources } from './resources';
+import { IResources, Collection } from './resources';
 import { ISidebarProps } from './sidebar';
 import { ISnippet } from './snippets';
 import { IStatus } from './status';
@@ -34,7 +33,6 @@ export interface ApplicationState {
   scopes: IScopes;
   history: IHistoryItem[];
   graphResponse: IGraphResponse;
-  permissionsPanelOpen: boolean;
   isLoadingData: boolean;
   snippets: ISnippet;
   responseAreaExpanded: boolean;
@@ -42,7 +40,7 @@ export interface ApplicationState {
   autoComplete: IAutocompleteResponse;
   devxApi: IDevxAPI;
   resources: IResources;
-  policies: IPolicies;
+  collections?: Collection[];
 }
 
 export interface IApiFetch {

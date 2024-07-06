@@ -1,6 +1,7 @@
 import {
   AccountInfo,
   AuthenticationResult,
+  BrowserAuthError,
   InteractionRequiredAuthError,
   PopupRequest,
   SilentRequest
@@ -11,10 +12,14 @@ import {
   DEFAULT_USER_SCOPES,
   HOME_ACCOUNT_KEY
 } from '../../app/services/graph-constants';
-import { signInAuthError } from './authentication-error-hints';
+import { SAFEROLLOUTACTIVE } from '../../app/services/variant-constants';
+import variantService from '../../app/services/variant-service';
 import { geLocale } from '../../appLocale';
+import { IQuery } from '../../types/query-runner';
+import { ClaimsChallenge } from './ClaimsChallenge';
 import { getCurrentUri } from './authUtils';
-import IAuthenticationWrapper from './IAuthenticationWrapper';
+import { signInAuthError } from './authentication-error-hints';
+import IAuthenticationWrapper from './interfaces/IAuthenticationWrapper';
 import { msalApplication } from './msal-app';
 
 const defaultScopes = DEFAULT_USER_SCOPES.split(' ');
@@ -22,6 +27,14 @@ const defaultScopes = DEFAULT_USER_SCOPES.split(' ');
 export class AuthenticationWrapper implements IAuthenticationWrapper {
   private static instance: AuthenticationWrapper;
   private consentingToNewScopes: boolean = false;
+  private performingStepUpAuth: boolean = false;
+  private claimsAvailable: boolean = false;
+  private sampleQuery: IQuery = {
+    sampleUrl: '',
+    selectedVerb: '',
+    selectedVersion: '',
+    sampleHeaders: []
+  };
 
   public static getInstance(): AuthenticationWrapper {
     if (!AuthenticationWrapper.instance) {
@@ -33,17 +46,25 @@ export class AuthenticationWrapper implements IAuthenticationWrapper {
   public getSessionId(): string | null {
     const account = this.getAccount();
     if (account) {
-      const idTokenClaims: any = account?.idTokenClaims;
-      return idTokenClaims?.sid;
+      const idTokenClaims = account?.idTokenClaims;
+      return idTokenClaims?.sid ?? null;
     }
     return null;
   }
 
-  public async logIn(sessionId = ''): Promise<AuthenticationResult> {
+  public async logIn(sessionId = '', sampleQuery?: IQuery): Promise<AuthenticationResult> {
+    if (sampleQuery) {
+      this.sampleQuery = sampleQuery;
+      this.performingStepUpAuth = true;
+    }
     this.consentingToNewScopes = false;
     // eslint-disable-next-line no-useless-catch
     try {
-      return await this.getAuthResult([], sessionId);
+      const authResult = await this.getAuthResult([], sessionId);
+      if (this.performingStepUpAuth && authResult) {
+        this.claimsAvailable = true;
+      }
+      return authResult;
     } catch (error) {
       throw error;
     }
@@ -55,17 +76,19 @@ export class AuthenticationWrapper implements IAuthenticationWrapper {
       authority: this.getAuthority(),
       prompt: 'select_account',
       redirectUri: getCurrentUri(),
-      extraQueryParameters: { mkt: geLocale }
+      extraQueryParameters: getExtraQueryParameters(),
+      tokenQueryParameters: getExtraQueryParameters()
     };
-    // eslint-disable-next-line no-useless-catch
     try {
       const result = await msalApplication.loginPopup(popUpRequest);
       this.storeHomeAccountId(result.account!);
       return result;
-    } catch (error: any) {
-      const { errorCode } = error;
-      if (errorCode === 'interaction_in_progress') {
-        this.eraseInteractionInProgressCookie();
+    } catch (error: unknown) {
+      if (error instanceof BrowserAuthError){
+        const { errorCode } = error;
+        if (errorCode === 'interaction_in_progress') {
+          this.eraseInteractionInProgressCookie();
+        }
       }
       throw error;
     }
@@ -125,58 +148,45 @@ export class AuthenticationWrapper implements IAuthenticationWrapper {
 
   public async getToken() {
     const silentRequest: SilentRequest = {
-      scopes: defaultScopes, authority: this.getAuthority(),
-      account: this.getAccount(), redirectUri: getCurrentUri()
+      scopes: defaultScopes,
+      authority: this.getAuthority(),
+      account: this.getAccount(),
+      redirectUri: getCurrentUri(),
+      claims: this.claimsAvailable ? this.getClaims() : undefined
     };
     const response: AuthenticationResult = await msalApplication.acquireTokenSilent(silentRequest);
     return response;
   }
 
-  public async getOcpsToken() {
-    const resourceId = 'https://clients.config.office.net/';
-    const ocpsAccessTokenRequest = {
-      scopes: [resourceId + '/.default'],
-      account: this.getAccount()
-    }
-    try {
-      const ocpsToken: string = (await msalApplication.acquireTokenSilent(ocpsAccessTokenRequest)).accessToken;
-      return ocpsToken;
-    } catch (error) {
-      if (error instanceof InteractionRequiredAuthError) {
-        msalApplication.acquireTokenPopup(ocpsAccessTokenRequest).then((ocpsAccessTokenRequest) => {
-          const ocpsToken = ocpsAccessTokenRequest.accessToken;
-          return ocpsToken;
-        })
-      }
-      else {
-        throw error;
-      }
-    }
-  }
-
   private async getAuthResult(scopes: string[] = [], sessionId?: string): Promise<AuthenticationResult> {
-    const silentRequest: SilentRequest = {
-      scopes: scopes.length > 0 ? scopes : defaultScopes,
-      authority: this.getAuthority(),
-      account: this.getAccount(),
-      redirectUri: getCurrentUri()
-    };
-
     try {
+      const silentRequest: SilentRequest = {
+        scopes: scopes.length > 0 ? scopes : defaultScopes,
+        authority: this.getAuthority(),
+        account: this.getAccount(),
+        redirectUri: getCurrentUri(),
+        claims: this.getClaims()
+      };
       const result = await msalApplication.acquireTokenSilent(silentRequest);
       this.storeHomeAccountId(result.account!);
       return result;
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof InteractionRequiredAuthError || !this.getAccount()) {
-        return this.loginWithInteraction(silentRequest.scopes, sessionId);
-
-      } else if (signInAuthError(error)) {
+        return this.loginWithInteraction(scopes.length > 0 ? scopes : defaultScopes, sessionId);
+      }
+      if (typeof error === 'string' && signInAuthError(error as string)) {
         this.deleteHomeAccountId();
-        throw error;
       }
-      else {
-        throw error;
-      }
+      throw error;
+    }
+  }
+
+  private getClaims(): string | undefined {
+    const account = this.getAccount();
+    if (account && (this.sampleQuery.sampleUrl !== '')) {
+      const claimsChallenge = new ClaimsChallenge(this.sampleQuery, account);
+      const storedClaims = claimsChallenge.getClaimsFromStorage();
+      return storedClaims ? window.atob(storedClaims) : undefined;
     }
   }
 
@@ -198,10 +208,12 @@ export class AuthenticationWrapper implements IAuthenticationWrapper {
       authority: this.getAuthority(),
       prompt: 'select_account',
       redirectUri: getCurrentUri(),
-      extraQueryParameters: { mkt: geLocale }
+      claims: this.getClaims(),
+      extraQueryParameters: getExtraQueryParameters(),
+      tokenQueryParameters: getExtraQueryParameters()
     };
 
-    if (this.consentingToNewScopes) {
+    if (this.consentingToNewScopes || this.performingStepUpAuth) {
       delete popUpRequest.prompt;
       popUpRequest.loginHint = this.getAccount()?.username;
     }
@@ -215,23 +227,20 @@ export class AuthenticationWrapper implements IAuthenticationWrapper {
       const result = await msalApplication.loginPopup(popUpRequest);
       this.storeHomeAccountId(result.account!);
       return result;
-    } catch (error: any) {
-      const { errorCode } = error;
-      if (signInAuthError(errorCode) && !this.consentingToNewScopes) {
-        this.clearSession();
-
-        if (errorCode === 'interaction_in_progress') {
-          this.eraseInteractionInProgressCookie();
+    } catch (error: unknown) {
+      if(error instanceof BrowserAuthError){
+        const { errorCode } = error;
+        const valid = !this.consentingToNewScopes && errorCode !== 'user_cancelled';
+        if (signInAuthError(errorCode) && valid) {
+          this.clearSession();
+          if (errorCode === 'interaction_in_progress') {
+            this.eraseInteractionInProgressCookie();
+          }
         }
-        throw error;
       }
-      else {
-        throw error;
-      }
-
+      throw error;
     }
   }
-
   private storeHomeAccountId(account: AccountInfo): void {
     localStorage.setItem(HOME_ACCOUNT_KEY, account.homeAccountId);
   }
@@ -265,13 +274,11 @@ export class AuthenticationWrapper implements IAuthenticationWrapper {
 
   private eraseInteractionInProgressCookie(): void {
     const keyValuePairs = document.cookie.split(';');
-    let cookieValue = '';
     let cookieKey = '';
 
     for (const pair of keyValuePairs) {
-      cookieValue = pair.substring(pair.indexOf('=') + 1);
-      if (cookieValue === 'interaction_in_progress') {
-        cookieKey = pair.substring(1, pair.indexOf('='));
+      cookieKey = pair.substring(0, pair.indexOf('=')).trim();
+      if (cookieKey === 'msal.interaction.status' || cookieKey === 'interaction_in_progress') {
         break;
       }
     }
@@ -292,3 +299,20 @@ export class AuthenticationWrapper implements IAuthenticationWrapper {
     window.sessionStorage.clear();
   }
 }
+
+function getExtraQueryParameters(): { [key: string]: string } {
+  const params: { [key: string]: string } = {
+    mkt: geLocale
+  };
+  getSafeRolloutParameter(params);
+  return params;
+}
+
+function getSafeRolloutParameter(params: { [key: string]: string; }) {
+  const safeRolloutActive = variantService.getFeatureVariables('default', SAFEROLLOUTACTIVE);
+  const migrationParam = process.env.REACT_APP_MIGRATION_PARAMETER;
+  if (safeRolloutActive && migrationParam) {
+    params.safe_rollout = migrationParam;
+  }
+}
+

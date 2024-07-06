@@ -3,8 +3,9 @@ import { RESPONSE_HEADERS_COPY_BUTTON } from '../../../../telemetry/component-na
 
 import { Monaco } from '../../common';
 import { trackedGenericCopy } from '../../common/copy';
-import { convertVhToPx, getResponseHeight } from '../../common/dimensions/dimensions-adjustment';
-import { CopyButton } from '../../common/copy/CopyButton';
+import { CopyButton } from '../../common/lazy-loader/component-registry';
+import { convertVhToPx, getResponseEditorHeight,
+  getResponseHeight } from '../../common/dimensions/dimensions-adjustment';
 import { useAppSelector } from '../../../../store';
 
 const ResponseHeaders = () => {
@@ -12,7 +13,9 @@ const ResponseHeaders = () => {
     useAppSelector((state) => state);
   const { headers } = graphResponse;
 
-  const height = convertVhToPx(getResponseHeight(response.height, responseAreaExpanded), 135);
+  const defaultHeight = convertVhToPx(getResponseHeight(response.height, responseAreaExpanded), 220);
+  const monacoHeight = getResponseEditorHeight(120);
+
 
   const handleCopy = async () => trackedGenericCopy(JSON.stringify(headers), RESPONSE_HEADERS_COPY_BUTTON, sampleQuery)
 
@@ -24,7 +27,7 @@ const ResponseHeaders = () => {
           isIconButton={true}
           style={{ float: 'right', zIndex: 1 }}
         />
-        <Monaco body={headers} height={height} />
+        <Monaco body={headers} height={responseAreaExpanded ? defaultHeight : monacoHeight} />
       </div>
     );
   }

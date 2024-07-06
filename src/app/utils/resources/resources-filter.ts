@@ -1,30 +1,6 @@
 import { IResource } from '../../../types/resources';
 import { hasPlaceHolders } from '../sample-url-generation';
 
-function getResourcesSupportedByVersion(
-  resources: IResource[],
-  version: string,
-  searchText?: string
-): IResource[] {
-  const versionedResources: IResource[] = [];
-  resources.forEach((resource: IResource) => {
-    if (versionExists(resource, version)) {
-      resource.children = getResourcesSupportedByVersion(
-        resource.children || [],
-        version
-      );
-      versionedResources.push(resource);
-    }
-  });
-  return searchText
-    ? searchResources(versionedResources, searchText)
-    : versionedResources;
-}
-
-function versionExists(resource: IResource, version: string): boolean {
-  return resource.labels.some((k) => k.name === version);
-}
-
 function searchResources(haystack: IResource[], needle: string): IResource[] {
   const foundResources: IResource[] = [];
   haystack.forEach((resource: IResource) => {
@@ -48,7 +24,7 @@ function getMatchingResourceForUrl(url: string, resources: IResource[]): IResour
   let matching = [...resources];
   let node;
   for (const path of parts) {
-    if (hasPlaceHolders(path)) {
+    if (hasPlaceHolders(path) && path !== '{undefined-id}') {
       node = matching.find(k => hasPlaceHolders(k.segment));
       matching = node?.children || [];
     } else {
@@ -61,7 +37,5 @@ function getMatchingResourceForUrl(url: string, resources: IResource[]): IResour
 
 export {
   searchResources,
-  getResourcesSupportedByVersion,
-  versionExists,
   getMatchingResourceForUrl
 }

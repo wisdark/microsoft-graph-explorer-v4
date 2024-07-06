@@ -18,7 +18,7 @@ import { ClientError } from '../../utils/error-utils/ClientError';
 import { encodeHashCharacters } from '../../utils/query-url-sanitization';
 import { translateMessage } from '../../utils/translate-messages';
 import { authProvider, GraphClient } from '../graph-client';
-import { DEFAULT_USER_SCOPES } from '../graph-constants';
+import { DEFAULT_USER_SCOPES, GRAPH_URL } from '../graph-constants';
 import { QUERY_GRAPH_SUCCESS } from '../redux-constants';
 import { queryRunningStatus } from './query-loading-action-creators';
 
@@ -55,11 +55,12 @@ export function createAnonymousRequest(query: IQuery, proxyUrl: string, queryRun
     });
   }
 
-  const authToken = '{token:https://graph.microsoft.com/}';
+  const authToken = `{token:${GRAPH_URL}/}`;
   let headers = {
     Authorization: `Bearer ${authToken}`,
     'Content-Type': 'application/json',
     SdkVersion: 'GraphExplorer/4.0',
+    prefer: 'ms-graph-dev-mode',
     ...sampleHeaders
   };
 
@@ -70,7 +71,8 @@ export function createAnonymousRequest(query: IQuery, proxyUrl: string, queryRun
 
   const options: IRequestOptions = {
     method: query.selectedVerb,
-    headers
+    headers,
+    body: query.sampleBody ? JSON.stringify(query.sampleBody) : undefined
   };
   return { graphUrl, options };
 }
@@ -90,6 +92,7 @@ function createAuthenticatedRequest(
 ): GraphRequest {
   const sampleHeaders: any = {};
   sampleHeaders.SdkVersion = 'GraphExplorer/4.0';
+  sampleHeaders.prefer = 'ms-graph-dev-mode';
 
   if (query.sampleHeaders && query.sampleHeaders.length > 0) {
     query.sampleHeaders.forEach((header) => {
@@ -218,6 +221,14 @@ export async function generateResponseDownloadUrl(
   }
 }
 
+async function tryParseJson(textValue: string) {
+  try {
+    return JSON.parse(textValue);
+  } catch (error) {
+    return textValue;
+  }
+}
+
 export function parseResponse(
   response: any,
   respHeaders: any = {}
@@ -230,9 +241,10 @@ export function parseResponse(
     const contentType = getContentType(response.headers);
     switch (contentType) {
       case ContentType.Json:
-        return response.json();
+        return response.text().then(tryParseJson);
       case ContentType.XML:
       case ContentType.HTML:
+      case ContentType.TextCsv:
       case ContentType.TextPlain:
         return response.text();
 
@@ -258,7 +270,7 @@ export function parseResponse(
 export function queryResultsInCorsError(sampleUrl: string): boolean {
   sampleUrl = sampleUrl.toLowerCase();
   if (
-    (['/drive/', '/drives/', '/driveItem/'].some((x) =>
+    (['/drive/', '/drives/', '/driveItem/', '/employeeexperience/'].some((x) =>
       sampleUrl.includes(x)) && sampleUrl.endsWith('/content')) ||
     sampleUrl.includes('/reports/')
   ) {

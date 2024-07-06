@@ -6,6 +6,8 @@ export interface IPermission {
   consentDescription: string;
   isAdmin: boolean;
   consented: boolean;
+  consentType?: 'Principal' | 'AllPrinripal';
+  isLeastPrivilege?: boolean;
 }
 
 export interface IPermissionProps {
@@ -41,7 +43,7 @@ export interface IScopes {
   data: {
     specificPermissions: IPermission[];
     fullPermissions: IPermission[];
-    tenantWidePermissionsGrant?: any
+    tenantWidePermissionsGrant?: IPermissionGrant[];
   };
   error: any | null;
 }

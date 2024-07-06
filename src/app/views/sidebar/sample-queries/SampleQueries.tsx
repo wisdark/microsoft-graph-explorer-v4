@@ -5,7 +5,6 @@ import {
   SelectionMode, Spinner, SpinnerSize, styled, TooltipHost
 } from '@fluentui/react';
 import { useEffect, useRef, useState } from 'react';
-import { FormattedMessage } from 'react-intl';
 import { useDispatch } from 'react-redux';
 
 import { geLocale } from '../../../../appLocale';
@@ -25,7 +24,7 @@ import { classNames } from '../../classnames';
 import { NoResultsFound } from '../sidebar-utils/SearchResult';
 import { sidebarStyles } from '../Sidebar.styles';
 import {
-  isJsonString, performSearch, trackDocumentLinkClickedEvent,
+  isJsonString, performSearch, shouldRunQuery, trackDocumentLinkClickedEvent,
   trackSampleQueryClickEvent
 } from './sample-query-utils';
 
@@ -145,7 +144,7 @@ const UnstyledSampleQueries = (sampleProps?: ISampleQueriesProps): JSX.Element =
             >
               <Icon
                 className={classes.docLink}
-                aria-label={translateMessage('Query documentation')}
+                aria-label={translateMessage('Read documentation')}
                 iconName='TextDocument'
                 style={{
                   marginRight: '45%',
@@ -167,7 +166,7 @@ const UnstyledSampleQueries = (sampleProps?: ISampleQueriesProps): JSX.Element =
       onRender: (item: ISampleQuery) => {
         const signInText = translateMessage('Sign In to try this sample');
 
-        if (item.method === 'GET' || tokenPresent) {
+        if (shouldRunQuery({ method: item.method, authenticated: tokenPresent, url: item.requestUrl })) {
           return <div aria-hidden='true' />;
         }
 
@@ -176,7 +175,7 @@ const UnstyledSampleQueries = (sampleProps?: ISampleQueriesProps): JSX.Element =
             tooltipProps={{
               onRenderContent: () => (
                 <div style={{ paddingBottom: 3 }}>
-                  <FormattedMessage id={signInText} />
+                  {translateMessage(signInText)}
                 </div>
               )
             }}
@@ -270,7 +269,8 @@ const UnstyledSampleQueries = (sampleProps?: ISampleQueriesProps): JSX.Element =
     }
 
     if (props) {
-      if (!tokenPresent && props.item.method !== 'GET') {
+      const query: ISampleQuery = props.item!;
+      if (!shouldRunQuery({ method: query.method, authenticated: tokenPresent, url: query.requestUrl })) {
         selectionDisabled = true;
       }
       return (
@@ -280,7 +280,6 @@ const UnstyledSampleQueries = (sampleProps?: ISampleQueriesProps): JSX.Element =
             styles={customStyles}
             onClick={() => {
               if (!selectionDisabled) {
-                const query: ISampleQuery = props.item!;
                 querySelected(query);
               }
               setSelectedQuery(props.item)
@@ -306,7 +305,8 @@ const UnstyledSampleQueries = (sampleProps?: ISampleQueriesProps): JSX.Element =
           check: { display: 'none' },
           title: {
             fontSize: FontSizes.medium,
-            fontWeight: FontWeights.semibold
+            fontWeight: FontWeights.semibold,
+            paddingBottom: 2
           },
           expand: {
             fontSize: FontSizes.small
@@ -348,7 +348,7 @@ const UnstyledSampleQueries = (sampleProps?: ISampleQueriesProps): JSX.Element =
           isMultiline={true}
           dismissButtonAriaLabel='Close'
         >
-          <FormattedMessage id='viewing a cached set' />
+          {translateMessage('viewing a cached set')}
         </MessageBar>
       )}
       <MessageBar
@@ -356,7 +356,7 @@ const UnstyledSampleQueries = (sampleProps?: ISampleQueriesProps): JSX.Element =
         isMultiline={true}
         dismissButtonAriaLabel='Close'
       >
-        <FormattedMessage id='see more queries' />
+        {translateMessage('see more queries')}
         <Link
           target='_blank'
           rel="noopener noreferrer"
@@ -365,7 +365,7 @@ const UnstyledSampleQueries = (sampleProps?: ISampleQueriesProps): JSX.Element =
           href={`https://learn.microsoft.com/${geLocale}/graph/api/overview?view=graph-rest-1.0`}
           underline
         >
-          <FormattedMessage id='Microsoft Graph API Reference docs' />
+          {translateMessage('Microsoft Graph API Reference docs')}
         </Link>
       </MessageBar>
       <Announced

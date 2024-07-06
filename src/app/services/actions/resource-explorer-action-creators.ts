@@ -1,11 +1,13 @@
+import { resourcesCache } from '../../../modules/cache/resources.cache';
 import { AppAction } from '../../../types/action';
-import {
-  FETCH_RESOURCES_SUCCESS, FETCH_RESOURCES_PENDING,
-  FETCH_RESOURCES_ERROR, RESOURCEPATHS_ADD_SUCCESS, RESOURCEPATHS_DELETE_SUCCESS
-} from '../redux-constants';
+import { IRequestOptions } from '../../../types/request';
 import { IResource } from '../../../types/resources';
 import { ApplicationState } from '../../../types/root';
-import { IRequestOptions } from '../../../types/request';
+import {
+  FETCH_RESOURCES_ERROR,
+  FETCH_RESOURCES_PENDING,
+  FETCH_RESOURCES_SUCCESS
+} from '../redux-constants';
 
 export function fetchResourcesSuccess(response: object): AppAction {
   return {
@@ -28,40 +30,51 @@ export function fetchResourcesError(response: object): AppAction {
   };
 }
 
-export function addResourcePaths(response: object): AppAction {
-  return {
-    type: RESOURCEPATHS_ADD_SUCCESS,
-    response
-  };
-}
-
-export function removeResourcePaths(response: object): AppAction {
-  return {
-    type: RESOURCEPATHS_DELETE_SUCCESS,
-    response
-  };
-}
-
 export function fetchResources() {
   return async (dispatch: Function, getState: Function) => {
+    const { devxApi }: ApplicationState = getState();
+    const resourcesUrl = `${devxApi.baseUrl}/openapi/tree`;
+    const v1Url = resourcesUrl + '?graphVersions=v1.0';
+    const betaUrl = resourcesUrl + '?graphVersions=beta';
+
+    const headers = {
+      'Content-Type': 'application/json'
+    };
+
+    const options: IRequestOptions = { headers };
+
+    dispatch(fetchResourcesPending());
+
     try {
-      const { devxApi }: ApplicationState = getState();
-      const resourcesUrl = `${devxApi.baseUrl}/openapi/tree`;
+      const v1CachedResources = await resourcesCache.readResources('v1.0');
+      const betaCachedResources = await resourcesCache.readResources('beta');
+      if (v1CachedResources && betaCachedResources) {
+        return dispatch(fetchResourcesSuccess({
+          'v1.0': v1CachedResources,
+          'beta': betaCachedResources
+        }));
+      } else {
+        const [v1Response, betaResponse] = await Promise.all([
+          fetch(v1Url, options),
+          fetch(betaUrl, options)
+        ]);
 
-      const headers = {
-        'Content-Type': 'application/json'
-      };
+        if (v1Response.ok && betaResponse.ok) {
+          const [v1Data, betaData] = await Promise.all([
+            v1Response.json(), betaResponse.json()
+          ]);
 
-      const options: IRequestOptions = { headers };
+          resourcesCache.saveResources(v1Data as IResource, 'v1.0');
+          resourcesCache.saveResources(betaData as IResource, 'beta');
 
-      dispatch(fetchResourcesPending());
-
-      const response = await fetch(resourcesUrl, options);
-      if (response.ok) {
-        const resources = await response.json() as IResource;
-        return dispatch(fetchResourcesSuccess(resources));
+          return dispatch(fetchResourcesSuccess({
+            'v1.0': v1Data,
+            'beta': betaData
+          }));
+        } else {
+          throw new Error('Failed to fetch resources');
+        }
       }
-      throw response;
     } catch (error) {
       return dispatch(fetchResourcesError({ error }));
     }

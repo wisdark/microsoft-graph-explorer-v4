@@ -1,7 +1,6 @@
 import { AuthenticationResult } from '@azure/msal-browser';
 import { IconButton, IIconProps, Label, MessageBar, MessageBarType, styled } from '@fluentui/react';
 import { useEffect, useState } from 'react';
-import { FormattedMessage } from 'react-intl';
 import { authenticationWrapper } from '../../../../../modules/authentication';
 import { useAppSelector } from '../../../../../store';
 
@@ -10,7 +9,7 @@ import { ACCOUNT_TYPE } from '../../../../services/graph-constants';
 import { translateMessage } from '../../../../utils/translate-messages';
 import { classNames } from '../../../classnames';
 import { trackedGenericCopy } from '../../../common/copy';
-import { CopyButton } from '../../../common/copy/CopyButton';
+import { CopyButton } from '../../../common/lazy-loader/component-registry';
 import { convertVhToPx } from '../../../common/dimensions/dimensions-adjustment';
 import { authStyles } from './Auth.styles';
 
@@ -32,7 +31,7 @@ export function Auth(props: any) {
     }).catch(() => {
       setLoading(false);
     });
-  }, []);
+  }, [authToken]);
 
   const classes = classNames(props);
 
@@ -42,7 +41,7 @@ export function Auth(props: any) {
 
   if (!authToken.token) {
     return <MessageBar messageBarType={MessageBarType.blocked}>
-      <FormattedMessage id='Sign In to see your access token.' />
+      {translateMessage('Sign In to see your access token.')}
     </MessageBar>;
   }
 
@@ -52,7 +51,7 @@ export function Auth(props: any) {
     {!loading ?
       <div>
         <div className={classes.accessTokenContainer}>
-          <Label className={classes.accessTokenLabel}><FormattedMessage id='Access Token' /></Label>
+          <Label className={classes.accessTokenLabel}>{translateMessage('Access Token' )}</Label>
           <CopyButton isIconButton={true} handleOnClick={handleCopy} />
           <IconButton iconProps={tokenDetailsIcon}
             title={translateMessage(showMessage())}
@@ -66,7 +65,7 @@ export function Auth(props: any) {
       </div>
       :
       <Label className={classes.emptyStateLabel}>
-        <FormattedMessage id='Getting your access token' /> ...
+        {translateMessage('Getting your access token')} ...
       </Label>
     }
   </div>);

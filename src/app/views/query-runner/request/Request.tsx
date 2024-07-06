@@ -1,7 +1,10 @@
-import { FontSizes, Pivot, PivotItem } from '@fluentui/react';
+import {
+  FontSizes,
+  Pivot,
+  PivotItem
+} from '@fluentui/react';
 import { Resizable } from 're-resizable';
-import { CSSProperties, useState } from 'react';
-import { injectIntl } from 'react-intl';
+import { CSSProperties, useEffect, useState } from 'react';
 import { useDispatch } from 'react-redux';
 
 import { AppDispatch, useAppSelector } from '../../../../store';
@@ -10,24 +13,30 @@ import { Mode } from '../../../../types/enums';
 import { setDimensions } from '../../../services/actions/dimensions-action-creator';
 import { translateMessage } from '../../../utils/translate-messages';
 import { convertPxToVh, convertVhToPx } from '../../common/dimensions/dimensions-adjustment';
-import { Auth } from './auth';
 import { RequestBody } from './body';
-import { RequestHeaders } from './headers';
-import { Permission } from './permissions';
 import './request.scss';
+import { Permissions, Auth, RequestHeaders } from '../../common/lazy-loader/component-registry';
 
 const Request = (props: any) => {
   const dispatch: AppDispatch = useDispatch();
   const [selectedPivot, setSelectedPivot] = useState('request-body');
-  const { graphExplorerMode: mode, dimensions } = useAppSelector((state) => state);
+  const { graphExplorerMode: mode, dimensions, sidebarProperties } = useAppSelector((state) => state);
   const pivot = selectedPivot.replace('.$', '');
   const minHeight = 60;
   const maxHeight = 800;
 
   const {
-    handleOnEditorChange,
-    intl: { messages }
+    handleOnEditorChange
   }: any = props;
+
+  useEffect(() => {
+    if(sidebarProperties && sidebarProperties.mobileScreen){
+      window.addEventListener('resize', resizeHandler);
+    }
+    else{
+      window.removeEventListener('resize', resizeHandler);
+    }
+  }, [sidebarProperties.mobileScreen])
 
   const getPivotItems = (height: string) => {
 
@@ -44,13 +53,14 @@ const Request = (props: any) => {
         key='request-body'
         itemIcon='Send'
         itemKey='request-body' // To be used to construct component name for telemetry data
-        ariaLabel={messages['request body']}
-        headerText={messages['request body']}
+        ariaLabel={translateMessage('request body')}
+        headerText={translateMessage('request body')}
+        title={translateMessage('request body')}
         headerButtonProps={{
           'aria-controls': 'request-body-tab'
         }}
       >
-        <div style={containerStyle} id={'request-body-tab'}>
+        <div style={containerStyle} id={'request-body-tab'} tabIndex={0}>
           <RequestBody handleOnEditorChange={handleOnEditorChange} />
         </div>
       </PivotItem>,
@@ -58,13 +68,14 @@ const Request = (props: any) => {
         key='request-headers'
         itemIcon='FileComment'
         itemKey='request-headers'
-        ariaLabel={messages['request header']}
-        headerText={messages['request header']}
+        ariaLabel={translateMessage('request header')}
+        headerText={translateMessage('request header')}
+        title={translateMessage('request header')}
         headerButtonProps={{
           'aria-controls': 'request-header-tab'
         }}
       >
-        <div style={containerStyle} id={'request-header-tab'}>
+        <div style={containerStyle} id={'request-header-tab'} tabIndex={0}>
           <RequestHeaders />
         </div>
       </PivotItem>,
@@ -73,13 +84,14 @@ const Request = (props: any) => {
         itemIcon='AzureKeyVault'
         itemKey='modify-permissions'
         ariaLabel={translateMessage('modify permissions')}
-        headerText={messages['modify permissions']}
+        headerText={translateMessage('modify permissions')}
+        title={translateMessage('modify permissions')}
         headerButtonProps={{
           'aria-controls': 'permission-tab'
         }}
       >
-        <div style={containerStyle} id={'permission-tab'}>
-          <Permission />
+        <div style={containerStyle} id={'permission-tab'} tabIndex={0}>
+          <Permissions />
         </div>
       </PivotItem>
     ];
@@ -91,13 +103,14 @@ const Request = (props: any) => {
           itemKey='access-token'
           ariaLabel={translateMessage('Access Token')}
           headerText={translateMessage('Access Token')}
+          title={translateMessage('Access Token')}
           headerButtonProps={{
             'aria-controls': 'access-token-tab'
           }}>
-          <div style={containerStyle} id={'access-token-tab'}>
+          <div style={containerStyle} id={'access-token-tab'} tabIndex={0}>
             <Auth />
           </div>
-        </PivotItem>,
+        </PivotItem>
       );
     }
 
@@ -134,6 +147,18 @@ const Request = (props: any) => {
     dispatch(setDimensions(dimen));
   };
 
+  // Resizable element does not update it's size when the browser window is resized.
+  // This is a workaround to reset the height
+  const resizeHandler = () => {
+    const resizable = document.getElementsByClassName('request-resizable');
+    if (resizable && resizable.length > 0) {
+      const resizableElement = resizable[0] as HTMLElement;
+      if(resizableElement && resizableElement.style && resizableElement.style.height){
+        resizableElement.style.height = '';
+      }
+    }
+  }
+
   return (
     <>
       <Resizable
@@ -155,15 +180,16 @@ const Request = (props: any) => {
         enable={{
           bottom: true
         }}
+        className='request-resizable'
       >
         <div className='query-request'>
           <Pivot
             overflowBehavior='menu'
-            overflowAriaLabel={translateMessage('More items')}
+            overflowAriaLabel={translateMessage('More request area items')}
             onLinkClick={handlePivotItemClick}
             className='pivot-request'
             selectedKey={pivot}
-            styles={{ text: { fontSize: FontSizes.size14 } }}
+            styles={{ text: { fontSize: FontSizes.size14 }}}
           >
             {requestPivotItems}
           </Pivot>
@@ -173,5 +199,4 @@ const Request = (props: any) => {
   );
 }
 
-const IntlRequest = injectIntl(Request);
-export default IntlRequest;
+export default Request;

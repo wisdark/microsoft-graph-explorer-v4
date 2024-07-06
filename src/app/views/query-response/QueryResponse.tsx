@@ -3,7 +3,6 @@ import {
 } from '@fluentui/react';
 import { Resizable } from 're-resizable';
 import { CSSProperties, useEffect, useState } from 'react';
-import { injectIntl } from 'react-intl';
 import { useDispatch } from 'react-redux';
 
 import { AppDispatch, useAppSelector } from '../../../store';
@@ -26,7 +25,7 @@ const QueryResponse = () => {
   const { modalStyles, modalPivotStyles } = queryResponseStyles(currentTheme);
 
   useEffect(() => {
-    setResponseHeight(convertVhToPx(dimensions.response.height, 50));
+    setResponseHeight(convertVhToPx(dimensions.response.height, 220));
   }, [dimensions]);
 
   const flexQueryElement: CSSProperties = {
@@ -108,7 +107,7 @@ const QueryResponse = () => {
           flex: 1
         }} onScroll={onScroll}>
           <Pivot overflowBehavior='menu'
-            overflowAriaLabel={translateMessage('More items')}
+            overflowAriaLabel={translateMessage('More response items')}
             onLinkClick={handlePivotItemClick}
             className={'pivot-response'}
             selectedKey={currentTab}
@@ -133,6 +132,7 @@ const QueryResponse = () => {
           isOpen={showModal}
           onDismiss={toggleExpandResponse}
           styles={modalStyles}
+          layerProps={{ eventBubblingEnabled: true }}
         >
           <IconButton
             styles={{
@@ -147,6 +147,8 @@ const QueryResponse = () => {
           />
           <Pivot className='pivot-response'
             onLinkClick={(pivotItem) => onModalPivotItemClicked(pivotItem)}
+            overflowBehavior='menu'
+            overflowAriaLabel={translateMessage('More items')}
             selectedKey={currentTab}
             styles={modalPivotStyles}>
             {GetPivotItems()}
@@ -157,4 +159,4 @@ const QueryResponse = () => {
   );
 };
 
-export default injectIntl(QueryResponse);
+export default QueryResponse;

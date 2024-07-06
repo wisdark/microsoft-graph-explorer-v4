@@ -1,18 +1,20 @@
 import { Dropdown, IDropdownOption, IStackTokens, Stack } from '@fluentui/react';
-import { injectIntl } from 'react-intl';
+import { useContext } from 'react';
 import { useDispatch } from 'react-redux';
 
 import { AppDispatch, useAppSelector } from '../../../../store';
-import { httpMethods, IQuery, IQueryInputProps } from '../../../../types/query-runner';
+import { IQuery, IQueryInputProps, httpMethods } from '../../../../types/query-runner';
 import { setSampleQuery } from '../../../services/actions/query-input-action-creators';
+import { ValidationContext } from '../../../services/context/validation-context/ValidationContext';
 import { GRAPH_API_VERSIONS } from '../../../services/graph-constants';
 import { getStyleFor } from '../../../utils/http-methods.utils';
 import { parseSampleUrl } from '../../../utils/sample-url-generation';
 import { translateMessage } from '../../../utils/translate-messages';
 import SubmitButton from '../../../views/common/submit-button/SubmitButton';
+import { shouldRunQuery } from '../../sidebar/sample-queries/sample-query-utils';
 import { queryRunnerStyles } from '../QueryRunner.styles';
 import { AutoComplete } from './auto-complete';
-import { ShareQuery } from './share-query';
+import { ShareButton } from './share-query';
 
 const QueryInput = (props: IQueryInputProps) => {
   const {
@@ -22,6 +24,7 @@ const QueryInput = (props: IQueryInputProps) => {
   } = props;
 
   const dispatch: AppDispatch = useDispatch();
+  const validation = useContext(ValidationContext);
 
   const urlVersions: IDropdownOption[] = [];
   GRAPH_API_VERSIONS.forEach(version => {
@@ -36,7 +39,10 @@ const QueryInput = (props: IQueryInputProps) => {
   const authenticated = !!authToken.token;
   const { mobileScreen } = sidebarProperties;
 
-  const showError = !authenticated && sampleQuery.selectedVerb !== 'GET';
+  const showError = !shouldRunQuery({
+    method: sampleQuery.selectedVerb, authenticated,
+    url: sampleQuery.sampleUrl
+  });
   const { queryButtonStyles, verbSelector, shareQueryButtonStyles } = queryRunnerStyles();
   verbSelector.title = {
     ...verbSelector.title,
@@ -60,11 +66,15 @@ const QueryInput = (props: IQueryInputProps) => {
     return query;
   }
 
-  const runQuery = () => {
-    if (!sampleQuery.sampleUrl || sampleQuery.sampleUrl.indexOf('graph.microsoft.com') === -1) {
+  const runQuery = (queryUrl?: string) => {
+    let query: IQuery = sampleQuery;
+    if (queryUrl) {
+      query = getChangedQueryContent(queryUrl);
+    }
+    if (!validation.isValid) {
       return;
     }
-    handleOnRunQuery(sampleQuery);
+    handleOnRunQuery(query);
   };
 
   const queryInputStackTokens: IStackTokens = {
@@ -103,7 +113,7 @@ const QueryInput = (props: IQueryInputProps) => {
           <SubmitButton
             className='run-query-button'
             text={translateMessage('Run Query')}
-            disabled={showError || !sampleQuery.sampleUrl}
+            disabled={showError || !sampleQuery.sampleUrl || !validation.isValid}
             role='button'
             handleOnClick={() => runQuery()}
             submitting={submitting}
@@ -111,7 +121,7 @@ const QueryInput = (props: IQueryInputProps) => {
           />
         </Stack.Item>
         <Stack.Item shrink styles={!mobileScreen ? shareQueryButtonStyles : {}}>
-          <ShareQuery />
+          <ShareButton />
         </Stack.Item>
       </Stack>
     </>
@@ -119,6 +129,4 @@ const QueryInput = (props: IQueryInputProps) => {
 }
 
 // @ts-ignore
-const IntlQueryInput = injectIntl(QueryInput);
-// @ts-ignore
-export default IntlQueryInput;
+export default QueryInput;
