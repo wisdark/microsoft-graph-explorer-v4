@@ -1,35 +1,38 @@
 import { Announced, getTheme, ITheme, styled } from '@fluentui/react';
+import { FluentProvider, teamsHighContrastTheme, Theme, webDarkTheme, webLightTheme } from '@fluentui/react-components';
+import { bindActionCreators, Dispatch } from '@reduxjs/toolkit';
 import { Resizable } from 're-resizable';
 import { Component } from 'react';
 import { connect } from 'react-redux';
-import { bindActionCreators, Dispatch } from 'redux';
 
 import { removeSpinners } from '../..';
 import { authenticationWrapper } from '../../modules/authentication';
+import { ApplicationState } from '../../store';
 import { componentNames, eventTypes, telemetry } from '../../telemetry';
 import { loadGETheme } from '../../themes';
 import { ThemeContext } from '../../themes/theme-context';
 import { Mode } from '../../types/enums';
 import { IInitMessage, IQuery, IThemeChangedMessage } from '../../types/query-runner';
-import { ApplicationState } from '../../types/root';
 import { ISharedQueryParams } from '../../types/share-query';
 import { ISidebarProps } from '../../types/sidebar';
-import * as authActionCreators from '../services/actions/auth-action-creators';
-import { setDimensions } from '../services/actions/dimensions-action-creator';
-import { runQuery } from '../services/actions/query-action-creators';
-import { setSampleQuery } from '../services/actions/query-input-action-creators';
-import { changeTheme } from '../services/actions/theme-action-creator';
-import { toggleSidebar } from '../services/actions/toggle-sidebar-action-creator';
+import CollectionPermissionsProvider from '../services/context/collection-permissions/CollectionPermissionsProvider';
 import { PopupsProvider } from '../services/context/popups-context';
+import { ValidationProvider } from '../services/context/validation-context/ValidationProvider';
 import { GRAPH_URL } from '../services/graph-constants';
+import { signIn, storeScopes } from '../services/slices/auth.slice';
+import { setDimensions } from '../services/slices/dimensions.slice';
+import { runQuery } from '../services/slices/graph-response.slice';
+import { setSampleQuery } from '../services/slices/sample-query.slice';
+import { toggleSidebar } from '../services/slices/sidebar-properties.slice';
+import { changeTheme } from '../services/slices/theme.slice';
 import { parseSampleUrl } from '../utils/sample-url-generation';
 import { substituteTokens } from '../utils/token-helpers';
 import { translateMessage } from '../utils/translate-messages';
-import { TermsOfUseMessage } from './app-sections';
-import { StatusMessages } from './common/lazy-loader/component-registry';
+import { StatusMessages, TermsOfUseMessage } from './app-sections';
 import { headerMessaging } from './app-sections/HeaderMessaging';
 import { appStyles } from './App.styles';
 import { classNames } from './classnames';
+import Notification from './common/banners/Notification';
 import { KeyboardCopyEvent } from './common/copy-button/KeyboardCopyEvent';
 import PopupsWrapper from './common/popups/PopupsWrapper';
 import { createShareLink } from './common/share';
@@ -38,11 +41,11 @@ import { QueryResponse } from './query-response';
 import { QueryRunner } from './query-runner';
 import { parse } from './query-runner/util/iframe-message-parser';
 import { Sidebar } from './sidebar/Sidebar';
-import { ValidationProvider } from '../services/context/validation-context/ValidationProvider';
 export interface IAppProps {
   theme?: ITheme;
   styles?: object;
   profile: object;
+  appTheme: string;
   graphExplorerMode: Mode;
   sidebarProperties: ISidebarProps;
   sampleQuery: IQuery;
@@ -205,14 +208,14 @@ class App extends Component<IAppProps, IAppState> {
     const msgEvent: IThemeChangedMessage | IInitMessage = event.data;
 
     switch (msgEvent.type) {
-      case 'init':
-        this.handleInitMsg(msgEvent);
-        break;
-      case 'theme-changed':
-        this.handleThemeChangeMsg(msgEvent);
-        break;
-      default:
-        return;
+    case 'init':
+      this.handleInitMsg(msgEvent);
+      break;
+    case 'theme-changed':
+      this.handleThemeChangeMsg(msgEvent);
+      break;
+    default:
+      return;
     }
   };
 
@@ -318,9 +321,17 @@ class App extends Component<IAppProps, IAppState> {
     const width = parseFloat(sidebarWidth.replace('%', ''));
 
     const { dimensions, actions }: any = this.props;
-    const dimensionsToUpdate = { ...dimensions };
-    dimensionsToUpdate.content.width = `${maxWidth - width}%`;
-    dimensionsToUpdate.sidebar.width = `${width}%`;
+    const dimensionsToUpdate = {
+      ...dimensions,
+      content: {
+        ...dimensions.content,
+        width: `${maxWidth - width}%`
+      },
+      sidebar: {
+        ...dimensions.sidebar,
+        width: `${width}%`
+      }
+    };
     if (actions) {
       actions.setDimensions(dimensionsToUpdate);
     }
@@ -396,103 +407,119 @@ class App extends Component<IAppProps, IAppState> {
     this.removeFlexBasisProperty();
     this.removeSidebarHeightProperty();
 
+    const fluentV9Themes: Record<string, Theme>= {
+      'light': webLightTheme,
+      'dark': webDarkTheme,
+      'high-contrast': teamsHighContrastTheme
+    }
     return (
       // @ts-ignore
-      <ThemeContext.Provider value={this.props.appTheme}>
-        <PopupsProvider>
-          <div className={`ms-Grid ${classes.app}`} style={{ paddingLeft: mobileScreen && '15px' }}>
-            <MainHeader
-              toggleSidebar={this.toggleSidebar}
-            />
-            <Announced
-              message={
-                !showSidebar
-                  ? translateMessage('Sidebar minimized')
-                  : translateMessage('Sidebar maximized')
-              }
-            />
-            <div className={`ms-Grid-row ${classes.appRow}`} style={{
-              flexWrap: mobileScreen && 'wrap',
-              marginRight: showSidebar || (graphExplorerMode === Mode.TryIt) && '-20px',
-              flexDirection: (graphExplorerMode === Mode.TryIt) ? 'column' : 'row'
-            }}>
-              {graphExplorerMode === Mode.Complete && (
-                <Resizable
-                  onResize={(e: any, direction: any, ref: any) => {
-                    if (ref?.style?.width) {
-                      this.resizeSideBar(ref.style.width);
-                    }
-                  }}
-                  className={`ms-Grid-col ms-sm12 ms-md4 ms-lg4 ${sidebarWidth} resizable-sidebar`}
-                  minWidth={'71'}
-                  maxWidth={maxWidth}
-                  enable={{
-                    right: true
-                  }}
-                  handleClasses={{
-                    right: classes.vResizeHandle
-                  }}
-                  bounds={'parent'}
-                  size={{
-                    width: sideWidth,
-                    height: ''
-                  }}
-                >
-                  <Sidebar currentTab={this.state.sidebarTabSelection}
-                    setSidebarTabSelection={this.setSidebarTabSelection} showSidebar={showSidebar}
-                    toggleSidebar={this.toggleSidebar}
-                    mobileScreen={mobileScreen} />
-                </Resizable>
-              )}
-              {graphExplorerMode === Mode.TryIt &&
+      <FluentProvider theme={fluentV9Themes[this.props.appTheme]}>
+        <ThemeContext.Provider value={this.props.appTheme}>
+          <PopupsProvider>
+            <div className={`ms-Grid ${classes.app}`} style={{ paddingLeft: mobileScreen && '15px' }}>
+              <MainHeader
+                toggleSidebar={this.toggleSidebar}
+              />
+              <Announced
+                message={
+                  !showSidebar
+                    ? translateMessage('Sidebar minimized')
+                    : translateMessage('Sidebar maximized')
+                }
+              />
+              <div className={`ms-Grid-row ${classes.appRow}`} style={{
+                flexWrap: mobileScreen && 'wrap',
+                marginRight: showSidebar || (graphExplorerMode === Mode.TryIt) && '-20px',
+                flexDirection: (graphExplorerMode === Mode.TryIt) ? 'column' : 'row'
+              }}>
+                {graphExplorerMode === Mode.Complete && (
+                  <Resizable
+                    onResize={(e: any, direction: any, ref: any) => {
+                      if (ref?.style?.width) {
+                        this.resizeSideBar(ref.style.width);
+                      }
+                    }}
+                    className={`ms-Grid-col ms-sm12 ms-md4 ms-lg4 ${sidebarWidth} resizable-sidebar`}
+                    minWidth={'71'}
+                    maxWidth={maxWidth}
+                    enable={{
+                      right: true
+                    }}
+                    handleClasses={{
+                      right: classes.vResizeHandle
+                    }}
+                    bounds={'parent'}
+                    size={{
+                      width: sideWidth,
+                      height: ''
+                    }}
+                  >
+                    <Sidebar currentTab={this.state.sidebarTabSelection}
+                      setSidebarTabSelection={this.setSidebarTabSelection} showSidebar={showSidebar}
+                      toggleSidebar={this.toggleSidebar}
+                      mobileScreen={mobileScreen} />
+                  </Resizable>
+                )}
+                {graphExplorerMode === Mode.TryIt &&
                 headerMessaging(query)}
 
-              {displayContent && (
-                <Resizable
-                  bounds={'window'}
-                  className={`ms-Grid-col ms-sm12 ms-md4 ms-lg4 ${layout}`}
-                  enable={{
-                    right: false
-                  }}
-                  size={{
-                    width: graphExplorerMode === Mode.TryIt ? '100%' : contentWidth,
-                    height: ''
-                  }}
-                  style={!sidebarProperties.showSidebar && !mobileScreen ? {
-                    marginLeft: '8px', display: 'flex', flexDirection: 'column', alignItems: 'stretch', flex: 1
-                  } : {
-                    display: 'flex', flexDirection: 'column', alignItems: 'stretch', flex: 1
-                  }}
-                >
-                  <ValidationProvider>
-                    <div style={{ marginBottom: 2 }} >
-                      <QueryRunner onSelectVerb={this.handleSelectVerb} />
-                    </div>
-                    <div style={{
+                {displayContent && (
+                  <Resizable
+                    bounds={'window'}
+                    className={`ms-Grid-col ms-sm12 ms-md4 ms-lg4 ${layout}`}
+                    enable={{
+                      right: false
+                    }}
+                    size={{
+                      width: graphExplorerMode === Mode.TryIt ? '100%' : contentWidth,
+                      height: ''
+                    }}
+                    style={!sidebarProperties.showSidebar && !mobileScreen ? {
+                      marginLeft: '8px', display: 'flex', flexDirection: 'column', alignItems: 'stretch', flex: 1
+                    } : {
                       display: 'flex', flexDirection: 'column', alignItems: 'stretch', flex: 1
-                    }}>
-                      <div style={mobileScreen ? this.statusAreaMobileStyle : this.statusAreaFullScreenStyle}>
-                        <StatusMessages />
-                      </div>
-                      <QueryResponse />
+                    }}
+                  >
+                    <div className='ms-Grid-row'>
+                      <Notification
+                        header={translateMessage('Banner notification 1 header')}
+                        content={translateMessage('Banner notification 1 content')}
+                        link={translateMessage('Banner notification 1 link')}
+                        linkText={translateMessage('Banner notification 1 link text')}/>
                     </div>
-                  </ValidationProvider>
-                </Resizable>
-              )}
+                    <ValidationProvider>
+                      <div style={{ marginBottom: 2 }} >
+                        <QueryRunner onSelectVerb={this.handleSelectVerb} />
+                      </div>
+                      <div style={{
+                        display: 'flex', flexDirection: 'column', alignItems: 'stretch', flex: 1
+                      }}>
+                        <div style={mobileScreen ? this.statusAreaMobileStyle : this.statusAreaFullScreenStyle}>
+                          <StatusMessages />
+                        </div>
+                        <QueryResponse />
+                      </div>
+                    </ValidationProvider>
+                  </Resizable>
+                )}
+              </div>
+              <div style={mobileScreen ? this.statusAreaMobileStyle : this.statusAreaFullScreenStyle}>
+                <TermsOfUseMessage />
+              </div>
             </div>
-            <div style={mobileScreen ? this.statusAreaMobileStyle : this.statusAreaFullScreenStyle}>
-              <TermsOfUseMessage />
-            </div>
-          </div>
-          <PopupsWrapper />
-        </PopupsProvider>
-      </ThemeContext.Provider>
+            <CollectionPermissionsProvider>
+              <PopupsWrapper />
+            </CollectionPermissionsProvider>
+          </PopupsProvider>
+        </ThemeContext.Provider>
+      </FluentProvider>
     );
   }
 }
 
 const mapStateToProps = ({ sidebarProperties, theme, dimensions,
-  profile, sampleQuery, authToken, graphExplorerMode
+  profile, sampleQuery, auth: { authToken }, graphExplorerMode
 }: ApplicationState) => {
   const mobileScreen = !!sidebarProperties.mobileScreen;
   const showSidebar = !!sidebarProperties.showSidebar;
@@ -517,7 +544,8 @@ const mapDispatchToProps = (dispatch: Dispatch) => {
         runQuery,
         setSampleQuery,
         toggleSidebar,
-        ...authActionCreators,
+        signIn,
+        storeScopes,
         changeTheme,
         setDimensions
       },

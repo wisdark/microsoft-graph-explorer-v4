@@ -29,9 +29,10 @@ registerIcons({
   }
 });
 export const MainHeader: React.FunctionComponent<MainHeaderProps> = (props: MainHeaderProps) => {
-  const { profile, graphExplorerMode, sidebarProperties } = useAppSelector(
-    (state) => state
-  );
+  const profile = useAppSelector((state)=> state.profile)
+  const user = profile.user;
+  const graphExplorerMode = useAppSelector((state)=> state.graphExplorerMode)
+  const sidebarProperties = useAppSelector((state)=> state.sidebarProperties)
 
   const mobileScreen = !!sidebarProperties.mobileScreen;
   const showSidebar = !!sidebarProperties.showSidebar;
@@ -86,7 +87,7 @@ export const MainHeader: React.FunctionComponent<MainHeaderProps> = (props: Main
           tokens={{ childrenGap: mobileScreen ? 0 : 10 }}
         >
           {!mobileScreen && <FontIcon aria-label='tenant icon' iconName='tenantIcon' style={tenantIconStyles} />}
-          {!profile && !mobileScreen &&
+          {!user && !mobileScreen &&
             <div style={tenantContainerStyle}>
               <TooltipHost
                 content={
@@ -102,10 +103,10 @@ export const MainHeader: React.FunctionComponent<MainHeaderProps> = (props: Main
               </TooltipHost>
             </div>
           }
-          {profile && !mobileScreen &&
+          {user && !mobileScreen &&
             <div style={tenantContainerStyle}>
               <Label style={tenantLabelStyle}>Tenant</Label>
-              <Label>{profile.tenant}</Label>
+              <Label>{user?.tenant}</Label>
             </div>
           }
           <span style={moreInformationStyles}> <Settings /> </span>

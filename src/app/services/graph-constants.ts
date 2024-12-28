@@ -5,7 +5,6 @@ export const BETA_USER_INFO_URL = `${GRAPH_URL}/beta/me/profile`;
 export const USER_PICTURE_URL = `${GRAPH_URL}/beta/me/photo/$value`;
 export const AUTH_URL = 'https://login.microsoftonline.com';
 export const DEFAULT_USER_SCOPES = 'openid profile User.Read';
-export const DEVX_API_URL = 'https://graphexplorerapi.azurewebsites.net';
 export const GRAPH_API_SANDBOX_URL =
   'https://proxy.apisandbox.msdn.microsoft.com/svc';
 export const GRAPH_API_SANDBOX_ENDPOINT_URL =
@@ -34,3 +33,4 @@ export const ADMIN_CONSENT_DOC_LINK = 'https://learn.microsoft.com/en-us/graph/s
 export const CONSENT_TYPE_DOC_LINK = 'https://learn.microsoft.com/en-us/graph/api/resources/oauth2permissiongrant?view=graph-rest-1.0#:~:text=(eq%20only).-,consentType,-String'
 export const CURRENT_THEME='CURRENT_THEME';
 export const EXP_URL='https://default.exp-tas.com/exptas76/9b835cbf-9742-40db-84a7-7a323a77f3eb-gedev/api/v1/tas'
+export const BANNER_IS_VISIBLE = 'bannerIsVisible';

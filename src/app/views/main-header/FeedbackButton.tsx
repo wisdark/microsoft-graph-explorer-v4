@@ -8,7 +8,8 @@ import { useAppSelector } from '../../../store';
 
 export const FeedbackButton = () => {
   const [enableSurvey, setEnableSurvey] = useState(false);
-  const { profile } = useAppSelector((state) => state);
+  const user = useAppSelector((state) => state.profile.user)
+
   const currentTheme = getTheme();
   const feedbackIcon : IIconProps = {
     iconName : 'Feedback'
@@ -63,7 +64,7 @@ export const FeedbackButton = () => {
 
   return (
     <div>
-      {profile?.profileType !== ACCOUNT_TYPE.AAD &&
+      {user?.profileType !== ACCOUNT_TYPE.AAD &&
       <div>
         <TooltipHost
           content={content}

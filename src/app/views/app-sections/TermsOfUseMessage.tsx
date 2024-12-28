@@ -1,19 +1,17 @@
 import { Link, MessageBar, MessageBarType, styled } from '@fluentui/react';
-import { useDispatch } from 'react-redux';
 
 import { geLocale } from '../../../appLocale';
-import { AppDispatch, useAppSelector } from '../../../store';
+import { useAppDispatch, useAppSelector } from '../../../store';
 import { componentNames, telemetry } from '../../../telemetry';
-import { clearTermsOfUse } from '../../services/actions/terms-of-use-action-creator';
+import { clearTermsOfUse } from '../../services/slices/terms-of-use.slice';
 import { translateMessage } from '../../utils/translate-messages';
 import { appStyles } from '../App.styles';
 
 const StyledTermsOfUseMessage = () => {
 
-  const { termsOfUse } =
-    useAppSelector((state) => state);
+  const  termsOfUse = useAppSelector((state) => state.termsOfUse);
 
-  const dispatch: AppDispatch = useDispatch();
+  const dispatch = useAppDispatch();
   if (termsOfUse) {
     return <MessageBar messageBarType={MessageBarType.info}
       isMultiline={true}

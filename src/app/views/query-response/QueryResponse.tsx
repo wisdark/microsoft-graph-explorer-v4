@@ -3,12 +3,11 @@ import {
 } from '@fluentui/react';
 import { Resizable } from 're-resizable';
 import { CSSProperties, useEffect, useState } from 'react';
-import { useDispatch } from 'react-redux';
 
-import { AppDispatch, useAppSelector } from '../../../store';
+import { useAppDispatch, useAppSelector } from '../../../store';
 import { telemetry } from '../../../telemetry';
 import { IQuery } from '../../../types/query-runner';
-import { expandResponseArea } from '../../services/actions/response-expanded-action-creator';
+import { expandResponseArea } from '../../services/slices/response-area-expanded.slice';
 import { translateMessage } from '../../utils/translate-messages';
 import { convertVhToPx } from '../common/dimensions/dimensions-adjustment';
 import { GetPivotItems } from './pivot-items/pivot-items';
@@ -16,10 +15,12 @@ import './query-response.scss';
 import { queryResponseStyles } from './queryResponse.styles';
 
 const QueryResponse = () => {
-  const dispatch: AppDispatch = useDispatch();
+  const dispatch = useAppDispatch();
   const [showModal, setShowModal] = useState(false);
   const [responseHeight, setResponseHeight] = useState('610px');
-  const { sampleQuery, dimensions, snippets } = useAppSelector((state) => state);
+  const sampleQuery = useAppSelector((state)=> state.sampleQuery);
+  const dimensions = useAppSelector((state)=> state.dimensions);
+  const snippets = useAppSelector((state)=> state.snippets);
   const [currentTab, setCurrentTab] = useState<string>('response-preview');
   const currentTheme: ITheme = getTheme();
   const { modalStyles, modalPivotStyles } = queryResponseStyles(currentTheme);

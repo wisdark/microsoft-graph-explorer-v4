@@ -6,21 +6,19 @@ import {
   Label, MessageBar, MessageBarType, PrimaryButton, SearchBox, SelectionMode, styled, TooltipHost
 } from '@fluentui/react';
 import { useEffect, useRef, useState } from 'react';
-import { useDispatch } from 'react-redux';
 
-import { AppDispatch, useAppSelector } from '../../../../store';
+import { historyCache } from '../../../../modules/cache/history-utils';
+import { useAppDispatch, useAppSelector } from '../../../../store';
 import { componentNames, eventTypes, telemetry } from '../../../../telemetry';
 import { SortOrder } from '../../../../types/enums';
 import { Entry } from '../../../../types/har';
 import { IHistoryItem } from '../../../../types/history';
 import { IQuery } from '../../../../types/query-runner';
-import { runQuery } from '../../../services/actions/query-action-creators';
-import { setSampleQuery } from '../../../services/actions/query-input-action-creators';
-import { setQueryResponseStatus } from '../../../services/actions/query-status-action-creator';
-import {
-  bulkRemoveHistoryItems, removeHistoryItem, viewHistoryItem
-} from '../../../services/actions/request-history-action-creators';
 import { GRAPH_URL } from '../../../services/graph-constants';
+import { runQuery, setQueryResponse } from '../../../services/slices/graph-response.slice';
+import { removeAllHistoryItems, removeHistoryItem } from '../../../services/slices/history.slice';
+import { setQueryResponseStatus } from '../../../services/slices/query-status.slice';
+import { setSampleQuery } from '../../../services/slices/sample-query.slice';
 import { dynamicSort } from '../../../utils/dynamic-sort';
 import { generateGroupsFromList } from '../../../utils/generate-groups';
 import { sanitizeQueryUrl } from '../../../utils/query-url-sanitization';
@@ -31,6 +29,8 @@ import { classNames } from '../../classnames';
 import { NoResultsFound } from '../sidebar-utils/SearchResult';
 import { sidebarStyles } from '../Sidebar.styles';
 import { createHarEntry, exportQuery, generateHar } from './har-utils';
+import { ResourceLinkType } from '../../../../types/resources';
+import { addResourcePaths, removeResourcePaths } from '../../../services/slices/collections.slice';
 
 const columns = [
   { key: 'button', name: '', fieldName: '', minWidth: 20, maxWidth: 20 },
@@ -53,7 +53,12 @@ const formatDate = (date: any) => {
   return `${year}-${month}-${day}`;
 };
 
-const sortItems = (content: History[]) => {
+const today = formatDate(new Date());
+const yesterdaysDate = new Date();
+const yesterday = formatDate(yesterdaysDate);
+yesterdaysDate.setDate(yesterdaysDate.getDate() - 1);
+
+const sortItems = (content: IHistoryItem[]) => {
   content.sort(dynamicSort('createdAt', SortOrder.DESC));
   content.forEach((value: any, index: number) => {
     value.index = index;
@@ -61,38 +66,39 @@ const sortItems = (content: History[]) => {
   return content;
 }
 
-const getItems = (content: IHistoryItem[]) => {
-  const list: History[] = [];
+const getCategory = (historyItem: IHistoryItem) => {
   const olderText = translateMessage('older');
   const todayText = translateMessage('today');
   const yesterdayText = translateMessage('yesterday');
+  let category = olderText;
+  if (historyItem.createdAt.includes(today)) {
+    category = todayText;
+  } else if (historyItem.createdAt.includes(yesterday)) {
+    category = yesterdayText;
+  }
+  return category;
+}
 
-  let date = olderText;
-  const today = formatDate(new Date());
-  const yesterdaysDate = new Date();
-  yesterdaysDate.setDate(yesterdaysDate.getDate() - 1);
-  const yesterday = formatDate(yesterdaysDate);
-
-  content.forEach((element: any) => {
-    if (element.createdAt.includes(today)) {
-      date = todayText;
-    } else if (element.createdAt.includes(yesterday)) {
-      date = yesterdayText;
-    }
-    element.category = date;
-    list.push(element);
+const getItems = (content: IHistoryItem[]): IHistoryItem[] => {
+  const list: IHistoryItem[] = [];
+  content.forEach((historyItem) => {
+    list.push({
+      ...historyItem,
+      category: getCategory(historyItem)
+    });
   });
   return sortItems(list);
 }
 
 const History = (props: any) => {
-  const dispatch: AppDispatch = useDispatch();
+  const dispatch = useAppDispatch();
   const { history } = useAppSelector((state) => state);
   const [historyItems, setHistoryItems] = useState<IHistoryItem[]>(history);
   const [hideDialog, setHideDialog] = useState(true);
   const [category, setCategory] = useState('');
   const [groups, setGroups] = useState<IGroup[]>([]);
   const [searchStarted, setSearchStarted] = useState(false);
+  const {collections} = useAppSelector((state) => state.collections);
 
   const shouldGenerateGroups = useRef(true);
 
@@ -116,6 +122,15 @@ const History = (props: any) => {
   if (!history || history.length === 0) {
     return NoResultsFound('We did not find any history items');
   }
+
+  const isInCollection = (item: IHistoryItem) => {
+    const defaultCollection = collections.find((collection) => collection.isDefault);
+    if (!defaultCollection) { return false; }
+    return defaultCollection.paths.some((path) => {
+      const { relativeUrl } = processUrlAndVersion(item.url);
+      return path.url === relativeUrl && path.method === item.method;
+    });
+  };
 
   const searchValueChanged = (_event: any, value?: string): void => {
     shouldGenerateGroups.current = true;
@@ -143,6 +158,7 @@ const History = (props: any) => {
     );
   };
 
+
   const renderItemColumn = (item: any, index: number | undefined, column: IColumn | undefined) => {
     const hostId: string = getId('tooltipHost');
     const currentTheme = getTheme();
@@ -152,6 +168,7 @@ const History = (props: any) => {
     const viewText = translateMessage('view');
     const removeText = translateMessage('Delete');
     const exportQueryText = translateMessage('Export');
+    const inCollection = isInCollection(item);
 
     if (column) {
       const queryContent = item[column.fieldName as keyof any] as string;
@@ -161,92 +178,109 @@ const History = (props: any) => {
       }
 
       switch (column.key) {
-        case 'status':
-          return (
-            <span style={{ color }} className={classes.badge}>
-              {item.status}
-            </span>
-          );
+      case 'status':
+        return (
+          <span style={{ color }} className={classes.badge}>
+            {item.status}
+          </span>
+        );
 
-        case 'button':
-          const buttonActions = [
-            {
-              key: 'actions',
-              itemType: ContextualMenuItemType.Header,
-              text: actionsText
+      case 'button':
+        const buttonActions = [
+          {
+            key: 'actions',
+            itemType: ContextualMenuItemType.Header,
+            text: actionsText
+          },
+          {
+            key: 'view',
+            text: viewText,
+            iconProps: {
+              iconName: 'View'
             },
-            {
-              key: 'view',
-              text: viewText,
-              iconProps: {
-                iconName: 'View'
-              },
-              onClick: () => onViewQueryButton(item)
+            onClick: () => onViewQueryButton(item)
+          },
+          {
+            key: 'runQuery',
+            text: runQueryText,
+            iconProps: {
+              iconName: 'Refresh'
             },
-            {
-              key: 'runQuery',
-              text: runQueryText,
-              iconProps: {
-                iconName: 'Refresh'
-              },
-              onClick: () => onRunQuery(item)
+            onClick: () => onRunQuery(item)
+          },
+          {
+            key: 'exportQuery',
+            text: exportQueryText,
+            iconProps: {
+              iconName: 'Download'
             },
-            {
-              key: 'exportQuery',
-              text: exportQueryText,
-              iconProps: {
-                iconName: 'Download'
-              },
-              onClick: () => onExportQuery(item)
+            onClick: () => onExportQuery(item)
+          },
+          ...(inCollection
+            ? [
+              {
+                key: 'removeFromCollection',
+                text: translateMessage('Remove from Collection'),
+                iconProps: { iconName: 'BoxSubtractSolid' },
+                onClick: () => handleRemoveFromCollection(item)
+              }
+            ]
+            : [
+              {
+                key: 'addToCollection',
+                text: translateMessage('Add to Collection'),
+                iconProps: { iconName: 'BoxAdditionSolid' },
+                onClick: () => handleAddToCollection(item)
+              }
+            ]),
+          {
+            key: 'remove',
+            text: removeText,
+            iconProps: {
+              iconName: 'Delete'
             },
-            {
-              key: 'remove',
-              text: removeText,
-              iconProps: {
-                iconName: 'Delete'
-              },
-              onClick: () => deleteQuery(item)
-            }
-          ];
+            onClick: () => deleteQuery(item)
+          }
+        ];
 
-          return (
+        return (
+          <TooltipHost
+            content={translateMessage('Actions')}
+            id={getId()}
+            calloutProps={{ gapSpace: 0 }}
+            styles={{ root: { display: 'inline-block' } }}>
+            <IconButton
+              className={classes.docLink}
+              ariaLabel={translateMessage('Actions menu')}
+              menuIconProps={{ iconName: 'More' }}
+              menuProps={{
+                shouldFocusOnMount: true,
+                items: buttonActions
+              }}
+              styles={{ root: { paddingBottom: 10, marginLeft: 1 } }}
+            />
+          </TooltipHost>
+        );
+
+      default:
+        const shortQueryContent = queryContent.replace(GRAPH_URL, '');
+        return (
+          <>
             <TooltipHost
-              content={translateMessage('Actions')}
-              id={getId()}
+              content={`${item.method} - ${queryContent}`}
+              id={hostId}
               calloutProps={{ gapSpace: 0 }}
-              styles={{ root: { display: 'inline-block' } }}>
-              <IconButton
-                className={classes.docLink}
-                ariaLabel={translateMessage('Actions menu')}
-                menuIconProps={{ iconName: 'More' }}
-                menuProps={{
-                  shouldFocusOnMount: true,
-                  items: buttonActions
-                }}
-                styles={{ root: { paddingBottom: 10, marginLeft: 1 } }}
-              />
-            </TooltipHost>
-          );
-
-        default:
-          const shortQueryContent = queryContent.replace(GRAPH_URL, '');
-          return (
-            <>
-              <TooltipHost
-                content={`${item.method} - ${queryContent}`}
-                id={hostId}
-                calloutProps={{ gapSpace: 0 }}
-                styles={{ root: { display: 'inline-block' } }}
+              styles={{ root: { display: 'inline-block' } }}
+            >
+              <span
+                aria-label={`${shortQueryContent}. ${translateMessage('Navigation help')}`}
+                className={classes.queryContent}
               >
-                <span
-                  aria-label={`${shortQueryContent}. ${translateMessage('Navigation help')}`}
-                  className={classes.queryContent}
-                >
-                  {shortQueryContent}
-                </span>
-              </TooltipHost>
-            </>
-          );
+                {shortQueryContent}
+              </span>
+            </TooltipHost>
+          </>
+        );
       }
     }
   };
@@ -346,14 +380,19 @@ const History = (props: any) => {
     setHideDialog(true);
   };
 
-  const deleteHistoryCategory = (): any => {
-    const itemsToDelete = historyItems.filter((query: IHistoryItem) => query.category === category);
-    dispatch(bulkRemoveHistoryItems(itemsToDelete));
+  const deleteHistoryCategory = (): void => {
+    const itemsToDelete = historyItems.filter((query: IHistoryItem) => getCategory(query) === category);
+    const listOfKeys: string[] = [];
+    itemsToDelete.forEach(historyItem => {
+      listOfKeys.push(historyItem.createdAt);
+    });
+    historyCache.bulkRemoveHistoryData(listOfKeys)
+    dispatch(removeAllHistoryItems(listOfKeys));
     closeDialog();
   };
 
   const exportHistoryByCategory = (value: string) => {
-    const itemsToExport = historyItems.filter((query: IHistoryItem) => query.category === value);
+    const itemsToExport = historyItems.filter((query: IHistoryItem) => getCategory(query) === value);
     const entries: Entry[] = [];
 
     itemsToExport.forEach((query: IHistoryItem) => {
@@ -408,6 +447,8 @@ const History = (props: any) => {
 
   const deleteQuery = async (query: IHistoryItem) => {
 
+    delete query.category;
+    historyCache.removeHistoryData(query);
     dispatch(removeHistoryItem(query));
     trackHistoryItemEvent(
       eventTypes.BUTTON_CLICK_EVENT,
@@ -445,10 +486,10 @@ const History = (props: any) => {
     };
     const { duration, status, statusText } = query;
     dispatch(setSampleQuery(sampleQuery));
-    dispatch(viewHistoryItem({
-      ...query,
+    dispatch(setQueryResponse({
+      body: query.result,
       headers: query.responseHeaders
-    }));
+    }))
     dispatch(setQueryResponseStatus({
       duration,
       messageType:
@@ -468,7 +509,43 @@ const History = (props: any) => {
         ItemIndex: query.index,
         QuerySignature: `${query.method} ${sanitizedUrl}`
       });
-  }
+  };
+
+  const processUrlAndVersion = (url: string) => {
+    let version = 'v1.0';
+    if (url.includes('graph.microsoft.com/beta')) {
+      version = 'beta';
+      url = url.replace('https://graph.microsoft.com/beta', '');
+    } else {
+      url = url.replace('https://graph.microsoft.com/v1.0', '');
+    }
+    return { relativeUrl: url, version };
+  };
+  const formatHistoryItem = (item: IHistoryItem) => {
+    const { relativeUrl, version } = processUrlAndVersion(item.url);
+    const pathSegments = relativeUrl.split('/').filter(Boolean);
+    const name = pathSegments[pathSegments.length - 1] || relativeUrl;
+
+    return {
+      paths: pathSegments,
+      name,
+      type: ResourceLinkType.PATH,
+      version,
+      method: item.method,
+      url: relativeUrl,
+      key: `${item.index}-${item.url}`
+    };
+  };
+
+  const handleAddToCollection = (item: IHistoryItem) => {
+    const resourcePath = formatHistoryItem(item);
+    dispatch(addResourcePaths([resourcePath]));
+  };
+
+  const handleRemoveFromCollection = (item: IHistoryItem) => {
+    const resourcePath = formatHistoryItem(item);
+    dispatch(removeResourcePaths([resourcePath]));
+  };
 
 
   return (

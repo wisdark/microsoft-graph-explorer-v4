@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [10.5.0](https://github.com/microsoftgraph/microsoft-graph-explorer-v4/compare/v10.4.1...v10.5.0) (2024-12-02)
+
+
+### Features
+
+* add a notification banner to display for first time users ([#3396](https://github.com/microsoftgraph/microsoft-graph-explorer-v4/issues/3396)) ([79e3b85](https://github.com/microsoftgraph/microsoft-graph-explorer-v4/commit/79e3b85083d305cbe2b8f851c48b3069aa180bdb))
+* API Permissions and Collections redesign ([#3391](https://github.com/microsoftgraph/microsoft-graph-explorer-v4/issues/3391)) ([d239f8f](https://github.com/microsoftgraph/microsoft-graph-explorer-v4/commit/d239f8fd53c2a937ef5d4c15a8e0ffd505c664f1))
+
+
+### Bug Fixes
+
+* select only the required values from state and useEffect to get description error message ([#3395](https://github.com/microsoftgraph/microsoft-graph-explorer-v4/issues/3395)) ([9141255](https://github.com/microsoftgraph/microsoft-graph-explorer-v4/commit/914125564325f74f5e739835cfdf4afb353188fd))
+
+## [10.4.1](https://github.com/microsoftgraph/microsoft-graph-explorer-v4/compare/v10.4.0...v10.4.1) (2024-10-07)
+
+
+### Bug Fixes
+
+* Update playwright tests ([#3381](https://github.com/microsoftgraph/microsoft-graph-explorer-v4/issues/3381)) ([fea4886](https://github.com/microsoftgraph/microsoft-graph-explorer-v4/commit/fea4886bc9b7dbd026cfd908d589842614b0ec13))
+* clone the resources and re-assign children to found values ([#3337](https://github.com/microsoftgraph/microsoft-graph-explorer-v4/issues/3337)) ([974c3bc](https://github.com/microsoftgraph/microsoft-graph-explorer-v4/commit/974c3bc25e8f94b7995b8e8a3827cca0e8c1b475))
+* Dependency security patch updates  ([#3355](https://github.com/microsoftgraph/microsoft-graph-explorer-v4/issues/3355)) ([d87b87a](https://github.com/microsoftgraph/microsoft-graph-explorer-v4/commit/d87b87aa20375a482e705ab501fee2fef2766995))
+* Inputting beta version results in getting beta endpoint suggestions ([#3289](https://github.com/microsoftgraph/microsoft-graph-explorer-v4/issues/3289)) ([0ba6683](https://github.com/microsoftgraph/microsoft-graph-explorer-v4/commit/0ba66837771b92bd0155262befa465fa3cb81ca1))
+
+
 ## [4.7.0](https://github.com/microsoftgraph/microsoft-graph-explorer-v4/compare/v4.2.0...v4.7.0) (2021-05-31)
 
 

@@ -1,14 +1,13 @@
 import { getTheme, ITextFieldProps, KeyCodes, mergeStyles, Text, TextField } from '@fluentui/react';
 import { useContext, useEffect, useRef, useState } from 'react';
-import { useDispatch } from 'react-redux';
 
 import { delimiters, getLastDelimiterInUrl, getSuggestions, SignContext } from '../../../../../modules/suggestions';
-import { AppDispatch, useAppSelector } from '../../../../../store';
+import { useAppDispatch, useAppSelector } from '../../../../../store';
 import { componentNames, eventTypes, telemetry } from '../../../../../telemetry';
 import { IAutoCompleteProps } from '../../../../../types/auto-complete';
-import { fetchAutoCompleteOptions } from '../../../../services/actions/autocomplete-action-creators';
 import { ValidationContext } from '../../../../services/context/validation-context/ValidationContext';
 import { GRAPH_API_VERSIONS, GRAPH_URL } from '../../../../services/graph-constants';
+import { fetchAutoCompleteOptions } from '../../../../services/slices/autocomplete.slice';
 import { sanitizeQueryUrl } from '../../../../utils/query-url-sanitization';
 import { parseSampleUrl } from '../../../../utils/sample-url-generation';
 import { translateMessage } from '../../../../utils/translate-messages';
@@ -23,16 +22,16 @@ import { usePrevious } from './use-previous';
 
 const AutoComplete = (props: IAutoCompleteProps) => {
 
-  const dispatch: AppDispatch = useDispatch();
+  const dispatch = useAppDispatch();
   const validation = useContext(ValidationContext);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const focusRef = useRef<any>(null);
 
   let element: HTMLDivElement | null | undefined = null;
 
-  const { sampleQuery, autoComplete: { data: autoCompleteOptions, pending: autoCompletePending } } = useAppSelector(
-    (state) => state
-  );
+  const sampleQuery = useAppSelector((state)=> state.sampleQuery);
+  const autoCompleteOptions = useAppSelector((state)=> state.autoComplete.data);
+  const autoCompletePending = useAppSelector((state)=> state.autoComplete.pending);
 
   const previousQuery = usePrevious(sampleQuery.sampleUrl);
   const [isMultiline, setIsMultiline] = useState<boolean>(false);
@@ -101,39 +100,39 @@ const AutoComplete = (props: IAutoCompleteProps) => {
 
   const onKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     switch (event.keyCode) {
-      case KeyCodes.enter:
+    case KeyCodes.enter:
+      event.preventDefault();
+      handleEnterKeyPressed();
+      break;
+
+    case KeyCodes.tab:
+      if (shouldShowSuggestions) {
         event.preventDefault();
-        handleEnterKeyPressed();
-        break;
+        handleTabKeyPressed();
+      }
+      break;
 
-      case KeyCodes.tab:
-        if (shouldShowSuggestions) {
-          event.preventDefault();
-          handleTabKeyPressed();
-        }
-        break;
+    case KeyCodes.up:
+      event.preventDefault();
+      handleUpKeyPressed();
+      break;
 
-      case KeyCodes.up:
-        event.preventDefault();
-        handleUpKeyPressed();
-        break;
+    case KeyCodes.down:
+      event.preventDefault();
+      handleDownKeyPressed();
+      break;
 
-      case KeyCodes.down:
-        event.preventDefault();
-        handleDownKeyPressed();
-        break;
+    case KeyCodes.escape:
+      handleEscapeKeyPressed();
+      break;
 
-      case KeyCodes.escape:
-        handleEscapeKeyPressed();
-        break;
+    case KeyCodes.backspace:
+      setBackspacing(true);
+      break;
 
-      case KeyCodes.backspace:
-        setBackspacing(true);
-        break;
-
-      default:
-        setBackspacing(false);
-        break;
+    default:
+      setBackspacing(false);
+      break;
     }
   };
 
@@ -183,18 +182,19 @@ const AutoComplete = (props: IAutoCompleteProps) => {
   const requestForAutocompleteOptions = (url: string, context: SignContext) => {
     const signature = sanitizeQueryUrl(url);
     const { requestUrl, queryVersion } = parseSampleUrl(signature);
-    const urlExistsInStore = autoCompleteOptions && requestUrl === autoCompleteOptions.url;
+    const urlExistsInStore = autoCompleteOptions && requestUrl === autoCompleteOptions.url &&
+      queryVersion === autoCompleteOptions.version;
     if (urlExistsInStore) {
       displayAutoCompleteSuggestions(autoCompleteOptions.url);
       return;
     }
 
     if (!requestUrl) {
-      dispatch(fetchAutoCompleteOptions('', queryVersion));
+      dispatch(fetchAutoCompleteOptions({ url: '', version: queryVersion }));
       return;
     }
 
-    dispatch(fetchAutoCompleteOptions(requestUrl, queryVersion, context));
+    dispatch(fetchAutoCompleteOptions({ url: requestUrl, version: queryVersion, context }));
   }
 
   const displayAutoCompleteSuggestions = (url: string) => {
@@ -290,6 +290,14 @@ const AutoComplete = (props: IAutoCompleteProps) => {
     validation.validate(queryUrl);
     return validation.error;
   }
+  const [descriptionError, setDescriptionError] = useState('');
+
+  useEffect(()=>{
+    const errorMessage = getErrorMessage();
+    if (errorMessage) {
+      setDescriptionError(errorMessage)
+    }
+  }, [getErrorMessage])
 
   return (
     <div onBlur={closeSuggestionDialog}>
@@ -310,7 +318,7 @@ const AutoComplete = (props: IAutoCompleteProps) => {
           ariaLabel={translateMessage('Query Sample Input')}
           role='textbox'
           onRenderDescription={handleRenderDescription}
-          description={getErrorMessage()}
+          description={descriptionError}
         />
       </div>
       {shouldShowSuggestions && queryUrl && suggestions.length > 0 &&
